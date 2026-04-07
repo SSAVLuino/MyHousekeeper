@@ -1,1 +1,0 @@
-export default function DeadlineList(){return <div>Deadlines</div>}
