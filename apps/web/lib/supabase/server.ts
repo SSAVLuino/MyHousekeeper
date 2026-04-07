@@ -17,11 +17,9 @@ export function createServerSupabase() {
             cookiesToSet.forEach(c =>
               cookieStore.set(c.name, c.value, c.options)
             )
-          } catch {
-            // chiamato da Server Component → ok ignorare
-          }
-        }
-      }
+          } catch {}
+        },
+      },
     }
   )
 }
