@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
 
-export default function NewAssetPage() {
+function NewAssetForm() {
   const searchParams = useSearchParams()
   const projectIdFromQuery = searchParams.get('project_id')
   
@@ -219,5 +219,20 @@ export default function NewAssetPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+export default function NewAssetPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    }>
+      <NewAssetForm />
+    </Suspense>
   )
 }
