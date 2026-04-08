@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import { loadValueLists } from '@/lib/valueListsHelper'
 
 function NewAssetForm() {
   const searchParams = useSearchParams()
@@ -34,24 +35,8 @@ function NewAssetForm() {
       if (!user) return
 
       // Carica tipi asset dalla value_lists (default + personali)
-      const { data: types } = await supabase
-        .from('value_lists')
-        .select('*')
-        .eq('category', 'asset_type')
-        .eq('is_active', true)
-        .or(`user_id.is.null,user_id.eq.${user.id}`)
-        .order('order_index')
-
-      // Filtra per mostrare solo versione personale se esiste
-      const personalTypes = (types || []).filter(t => t.user_id === user.id)
-      const defaultTypes = (types || []).filter(t => t.user_id === null)
-      
-      const mergedTypes = defaultTypes.map(d => {
-        const personal = personalTypes.find(p => p.value === d.value)
-        return personal || d
-      }).concat(personalTypes.filter(p => !defaultTypes.some(d => d.value === p.value)))
-
-      setAssetTypes(mergedTypes.sort((a, b) => a.order_index - b.order_index))
+      const types = await loadValueLists(supabase, 'asset_type', user.id, true)
+      setAssetTypes(types)
 
       // Carica progetti dell'utente
       const { data: userProjects } = await supabase
