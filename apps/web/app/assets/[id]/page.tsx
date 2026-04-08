@@ -29,7 +29,7 @@ export default async function AssetsPage() {
 
         <Link
           href="/assets/new"
-          className="text-sm text-blue-400 hover:underline"
+          className="text-sm text-blue-400 hover:text-blue-300"
         >
           + Nuovo asset
         </Link>
@@ -44,18 +44,3 @@ export default async function AssetsPage() {
           {assets.map(asset => (
             <li key={asset.id}>
               <Link
-                href={`/assets/${asset.id}`}
-                className="block rounded-lg bg-slate-800 p-4 hover:bg-slate-700 transition"
-              >
-                <div className="font-medium">{asset.name}</div>
-                <div className="text-sm text-slate-400 capitalize">
-                  Tipo: {asset.type}
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
