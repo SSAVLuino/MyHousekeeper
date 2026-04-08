@@ -1,0 +1,22 @@
+import './globals.css'
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: 'Asset Manager - Gestione Progetti e Scadenze',
+  description: 'Sistema di gestione progetti, asset e scadenze',
+}
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="it">
+      <body className={inter.className}>{children}</body>
+    </html>
+  )
+}
