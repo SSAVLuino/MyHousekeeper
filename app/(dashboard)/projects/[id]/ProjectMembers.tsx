@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { UserPlus, Trash2, Users, Shield } from 'lucide-react'
+import { loadValueLists } from '@/lib/valueListsHelper'
 
 interface Member {
   user_id: string
@@ -35,14 +36,11 @@ export default function ProjectMembers({ projectId, currentMembers, isOwner }: P
   }, [])
 
   const loadRoles = async () => {
-    const { data } = await supabase
-      .from('value_lists')
-      .select('*')
-      .eq('category', 'member_role')
-      .eq('is_active', true)
-      .order('order_index')
-    
-    setRoles(data || [])
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const roles = await loadValueLists(supabase, 'member_role', user.id, true)
+    setRoles(roles)
   }
 
   const loadMembersWithEmails = async () => {
