@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import { loadValueLists } from '@/lib/valueListsHelper'
 
 export default function EditAssetPage() {
   const params = useParams()
@@ -28,6 +29,10 @@ export default function EditAssetPage() {
 
   const loadData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      // Carica asset corrente
       const { data: asset, error: assetError } = await supabase
         .from('assets')
         .select('*')
@@ -41,25 +46,18 @@ export default function EditAssetPage() {
       setProjectId(asset.project_id || '')
       setDetails(asset.details ? (typeof asset.details === 'object' ? JSON.stringify(asset.details, null, 2) : asset.details) : '')
 
-      const { data: types } = await supabase
-        .from('value_lists')
+      // Carica tipi asset (default + personali)
+      const types = await loadValueLists(supabase, 'asset_type', user.id, true)
+      setAssetTypes(types)
+
+      // Carica progetti
+      const { data: userProjects } = await supabase
+        .from('projects')
         .select('*')
-        .eq('category', 'asset_type')
-        .eq('is_active', true)
-        .order('order_index')
+        .eq('owner_id', user.id)
+        .order('name')
 
-      setAssetTypes(types || [])
-
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data: userProjects } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('name')
-
-        setProjects(userProjects || [])
-      }
+      setProjects(userProjects || [])
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -200,7 +198,9 @@ export default function EditAssetPage() {
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+              placeholder='{"indirizzo": "Via Roma 10", "mq": 80}'
             />
+            <p className="text-xs text-gray-500 mt-1">Inserisci JSON valido o testo libero</p>
           </div>
 
           <div className="flex items-center gap-4 pt-4">
