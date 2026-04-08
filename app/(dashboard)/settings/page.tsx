@@ -24,70 +24,106 @@ export default async function SettingsPage() {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <User className="h-6 w-6 text-primary-600" />
-            <h2 className="text-xl font-semibold text-gray-900">Profilo Utente</h2>
+        {/* Informazioni Account */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Informazioni Account</h2>
           </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
-              <div className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-gray-400" />
-                <p className="text-gray-900">{user.email}</p>
+          <div className="p-6 space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-primary-100 rounded-full flex items-center justify-center">
+                <User className="h-6 w-6 text-primary-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm text-gray-500">ID Utente</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <code className="text-xs bg-gray-100 px-2 py-1 rounded font-mono text-gray-900">
+                    {user.id}
+                  </code>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(user.id)
+                      alert('ID copiato negli appunti!')
+                    }}
+                    className="text-xs text-primary-600 hover:text-primary-700"
+                  >
+                    Copia
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Condividi questo ID per essere aggiunto ai progetti
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">ID Utente</label>
-              <p className="text-sm text-gray-600 font-mono break-all">{user.id}</p>
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-primary-100 rounded-full flex items-center justify-center">
+                <Mail className="h-6 w-6 text-primary-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="text-gray-900 font-medium">{user.email}</p>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-500 mb-1">Data Registrazione</label>
-              <div className="flex items-center gap-2">
-                <Calendar className="h-5 w-5 text-gray-400" />
-                <p className="text-gray-900">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Account creato il</p>
+                <p className="text-gray-900 font-medium">
                   {format(new Date(user.created_at), 'dd MMMM yyyy', { locale: it })}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 bg-orange-100 rounded-full flex items-center justify-center">
+                <Mail className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Stato Email</p>
+                <p className="text-gray-900 font-medium">
+                  {user.email_confirmed_at ? (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Verificata
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                      Non verificata
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Informazioni Applicazione</h2>
-          
-          <div className="space-y-3 text-sm text-gray-600">
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span>Versione</span>
-              <span className="font-medium text-gray-900">1.0.0</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span>Framework</span>
-              <span className="font-medium text-gray-900">Next.js 14</span>
-            </div>
-            <div className="flex items-center justify-between py-2 border-b border-gray-100">
-              <span>Database</span>
-              <span className="font-medium text-gray-900">Supabase</span>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <span>Hosting</span>
-              <span className="font-medium text-gray-900">Vercel</span>
-            </div>
+        {/* Informazioni Utilizzo */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900">Informazioni Applicazione</h2>
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Notifiche</h2>
-          <p className="text-gray-600 mb-4">
-            Le notifiche per scadenze imminenti sono abilitate automaticamente nella dashboard.
-          </p>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              💡 <strong>Suggerimento:</strong> Controlla regolarmente la dashboard per vedere le scadenze in arrivo nei prossimi 7 giorni.
-            </p>
+          <div className="p-6">
+            <dl className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Versione</dt>
+                <dd className="text-lg font-semibold text-gray-900 mt-1">1.0.0</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Database</dt>
+                <dd className="text-lg font-semibold text-gray-900 mt-1">Supabase</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Framework</dt>
+                <dd className="text-lg font-semibold text-gray-900 mt-1">Next.js 14</dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">Hosting</dt>
+                <dd className="text-lg font-semibold text-gray-900 mt-1">Vercel</dd>
+              </div>
+            </dl>
           </div>
         </div>
       </div>
