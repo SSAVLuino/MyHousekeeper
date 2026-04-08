@@ -1,6 +1,6 @@
- 'use client'
+'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -13,8 +13,12 @@ import {
   LogOut,
   Menu,
   X,
-  List
+  List,
+  Crown,
+  Users
 } from 'lucide-react'
+import PlanBadge from './PlanBadge'
+import { isAdmin } from '@/lib/limitsHelper'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -25,11 +29,29 @@ const navigation = [
   { name: 'Impostazioni', href: '/settings', icon: Settings },
 ]
 
+const adminNavigation = [
+  { name: 'Gestione Utenti', href: '/admin/users', icon: Users },
+  { name: 'Gestione Piani', href: '/admin/plans', icon: Crown },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createClient()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isAdminUser, setIsAdminUser] = useState(false)
+
+  useEffect(() => {
+    checkAdminStatus()
+  }, [])
+
+  const checkAdminStatus = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    
+    const adminStatus = await isAdmin(supabase, user.id)
+    setIsAdminUser(adminStatus)
+  }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -91,7 +113,43 @@ export default function Sidebar() {
                 </Link>
               )
             })}
+            
+            {/* Admin Section */}
+            {isAdminUser && (
+              <>
+                <div className="pt-4 pb-2">
+                  <p className="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">
+                    Amministrazione
+                  </p>
+                </div>
+                {adminNavigation.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className={`
+                        flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
+                        ${isActive
+                          ? 'bg-purple-50 text-purple-700 font-medium'
+                          : 'text-gray-700 hover:bg-gray-100'
+                        }
+                      `}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      <span>{item.name}</span>
+                    </Link>
+                  )
+                })}
+              </>
+            )}
           </nav>
+
+          {/* Plan Badge */}
+          <div className="p-4 border-t border-gray-200">
+            <PlanBadge />
+          </div>
 
           {/* Logout button */}
           <div className="p-4 border-t border-gray-200">
