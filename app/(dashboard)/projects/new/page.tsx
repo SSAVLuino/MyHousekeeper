@@ -23,6 +23,16 @@ export default function NewProjectPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Non autenticato')
 
+      // 2. ⭐ CONTROLLO LIMITI
+      const limitCheck = await checkLimit(supabase, user.id, 'projects')
+      
+      // 3. Se limite raggiunto → BLOCCA
+      if (!limitCheck.allowed) {
+        setError(limitCheck.message) // Mostra messaggio
+        setLoading(false)
+        return // ⚠️ STOP - Non procede
+      }
+            
       const { error } = await supabase
         .from('projects')
         .insert({
