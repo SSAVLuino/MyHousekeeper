@@ -71,10 +71,12 @@ export default function LoginPage() {
         )}
       </form>
 
-      <p className="mt-6 text-center text-sm text-slate-400">
-        Non hai un account?{' '}
-        /signupRegistrati</a>
-      </p>
+     <p className="mt-6 text-center text-sm text-slate-400">
+      Non hai un account?{' '}
+      <a href="/signup" className="text-blue-400 hover:underline">
+        Registrati
+      </a>
+    </p>
     </div>
   );
 }
