@@ -4,17 +4,17 @@ import { createServerSupabase } from '@/lib/supabase/server';
 export default async function AssetsPage() {
   const supabase = createServerSupabase();
 
-  // Utente
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
-  // Recupera asset dell’utente
   const { data: assets, error } = await supabase
     .from('assets')
-    .select('id, name, type, created_at')
+    .select('id, name, type')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
 
@@ -27,7 +27,10 @@ export default async function AssetsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">I tuoi asset</h1>
 
-        /assets/new
+        <Link
+          href="/assets/new"
+          className="text-sm text-blue-400 hover:text-blue-300"
+        >
           + Nuovo asset
         </Link>
       </div>
@@ -39,20 +42,5 @@ export default async function AssetsPage() {
       ) : (
         <ul className="space-y-3">
           {assets.map(asset => (
-            /assets/{asset.id}
-              <li
-                key={asset.id}
-                className="rounded-lg bg-slate-800 p-4 hover:bg-slate-700 transition"
-              >
-                <div className="font-medium">{asset.name}</div>
-                <div className="text-sm text-slate-400 capitalize">
-                  Tipo: {asset.type}
-                </div>
-              </li>
-            </a>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
+            <li key={asset.id}>
+              <Link
