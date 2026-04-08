@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Trash2, Mail, Shield } from 'lucide-react'
+import { UserPlus, Trash2, Users, Shield } from 'lucide-react'
 
 interface Member {
   user_id: string
