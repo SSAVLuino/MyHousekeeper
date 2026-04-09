@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { User, Mail, Calendar } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
+import Image from 'next/image'
 
 export default function SettingsPage() {
   const [user, setUser] = useState<any>(null)
@@ -49,7 +50,19 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-8">
+      {/* Logo Scadix */}
+      <div className="flex justify-center mb-8">
+        <Image
+          src="/scadix.png"
+          alt="Scadix Logo"
+          width={100}
+          height={100}
+          className="rounded-xl shadow-md"
+          priority
+        />
+      </div>
+
+      <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-gray-900">Impostazioni</h1>
         <p className="text-gray-600 mt-1">Gestisci il tuo account e le preferenze</p>
       </div>
