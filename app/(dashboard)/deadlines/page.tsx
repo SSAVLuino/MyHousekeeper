@@ -150,7 +150,7 @@ export default function DeadlinesPage() {
       const { data: assetsData } = await supabase
         .from('assets')
         .select('id, name, project_id')
-        .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
+        .in('project_id', allProjectIds.length > 0 ? allProjectIds : ['00000000-0000-0000-0000-000000000000'])
         .order('name')
 
       setAssets(assetsData || [])
