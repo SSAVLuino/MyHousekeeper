@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, Save } from 'lucide-react'
+import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
 import { loadValueLists } from '@/lib/valueListsHelper'
+import { getProjectPermissions } from '@/lib/permissionsHelper'
 
 export default function EditAssetPage() {
   const params = useParams()
@@ -16,6 +17,7 @@ export default function EditAssetPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [canEdit, setCanEdit] = useState(false)
   
   const [assetTypes, setAssetTypes] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
@@ -30,16 +32,35 @@ export default function EditAssetPage() {
   const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
-      // Carica asset corrente
+      // Carica asset corrente con info progetto
       const { data: asset, error: assetError } = await supabase
         .from('assets')
-        .select('*')
+        .select('*, projects(id, owner_id)')
         .eq('id', params.id)
         .single()
 
-      if (assetError) throw assetError
+      if (assetError || !asset) {
+        setError('Asset non trovato')
+        setLoading(false)
+        return
+      }
+
+      // Verifica permessi
+      const permissions = await getProjectPermissions(supabase, asset.project_id, user.id)
+      
+      if (!permissions.canEditAssets) {
+        setError('Non hai i permessi per modificare questo asset')
+        setCanEdit(false)
+        setLoading(false)
+        return
+      }
+
+      setCanEdit(true)
 
       setName(asset.name)
       setType(asset.type)
@@ -50,14 +71,35 @@ export default function EditAssetPage() {
       const types = await loadValueLists(supabase, 'asset_type', user.id, true)
       setAssetTypes(types)
 
-      // Carica progetti
-      const { data: userProjects } = await supabase
+      // Carica progetti owned
+      const { data: ownedProjects } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, name')
         .eq('owner_id', user.id)
         .order('name')
 
-      setProjects(userProjects || [])
+      // Carica progetti member (solo admin/editor possono modificare asset)
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('project_id, role')
+        .eq('user_id', user.id)
+        .in('role', ['admin', 'editor'])
+
+      const memberProjectIds = memberships?.map(m => m.project_id) || []
+      
+      let memberProjects: any[] = []
+      if (memberProjectIds.length > 0) {
+        const { data } = await supabase
+          .from('projects')
+          .select('id, name')
+          .in('id', memberProjectIds)
+          .order('name')
+        
+        memberProjects = data || []
+      }
+
+      const allProjects = [...(ownedProjects || []), ...memberProjects]
+      setProjects(allProjects)
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -67,6 +109,12 @@ export default function EditAssetPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    if (!canEdit) {
+      setError('Non hai i permessi per modificare questo asset')
+      return
+    }
+    
     setSaving(true)
     setError(null)
 
@@ -107,6 +155,25 @@ export default function EditAssetPage() {
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
           <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!canEdit) {
+    return (
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+          <AlertCircle className="h-12 w-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-red-900 mb-2">Accesso Negato</h2>
+          <p className="text-red-700 mb-4">{error || 'Non hai i permessi per modificare questo asset'}</p>
+          <Link
+            href="/assets"
+            className="inline-flex items-center gap-2 text-red-600 hover:text-red-700"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Torna agli asset
+          </Link>
         </div>
       </div>
     )
