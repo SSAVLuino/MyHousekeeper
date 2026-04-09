@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { ArrowLeft, Save } from 'lucide-react'
 import Link from 'next/link'
+import { checkLimit } from '@/lib/limitsHelper'
 
 export default function NewProjectPage() {
   const [name, setName] = useState('')
