@@ -56,49 +56,5 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ],
-  "categories": ["productivity", "business"],
-  "shortcuts": [
-    {
-      "name": "Dashboard",
-      "short_name": "Home",
-      "description": "Vai alla dashboard principale",
-      "url": "/dashboard",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Nuovo Progetto",
-      "short_name": "Progetto",
-      "description": "Crea un nuovo progetto",
-      "url": "/projects/new",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    },
-    {
-      "name": "Nuova Scadenza",
-      "short_name": "Scadenza",
-      "description": "Crea una nuova scadenza",
-      "url": "/deadlines/new",
-      "icons": [
-        {
-          "src": "/icons/icon-96x96.png",
-          "sizes": "96x96"
-        }
-      ]
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false,
-  "scope": "/",
-  "lang": "it",
-  "dir": "ltr"
+  ]
 }
