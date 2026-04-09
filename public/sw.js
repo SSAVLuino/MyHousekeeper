@@ -5,7 +5,9 @@ const urlsToCache = [
   '/projects',
   '/assets',
   '/deadlines',
-  '/offline.html'
+  '/manifest.json',
+  '/icons/icon-192x192.png',
+  '/icons/icon-512x512.png'
 ];
 
 // Install event - cache resources
@@ -14,7 +16,12 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('Opened cache');
-        return cache.addAll(urlsToCache);
+        // Aggiungi file uno alla volta per evitare errori se uno manca
+        return Promise.allSettled(
+          urlsToCache.map(url => 
+            cache.add(url).catch(err => console.log('Failed to cache:', url, err))
+          )
+        );
       })
   );
   self.skipWaiting();
