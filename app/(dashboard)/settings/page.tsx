@@ -1,20 +1,51 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { User, Mail, Calendar } from 'lucide-react'
 import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
 
-async function getUserData() {
+export default function SettingsPage() {
+  const [user, setUser] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const router = useRouter()
   const supabase = createClient()
-  
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
-  return { user }
-}
+  useEffect(() => {
+    loadUser()
+  }, [])
 
-export default async function SettingsPage() {
-  const { user } = await getUserData()
+  const loadUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+    setUser(user)
+    setLoading(false)
+  }
+
+  const handleCopy = () => {
+    if (user) {
+      navigator.clipboard.writeText(user.id)
+      alert('ID copiato negli appunti!')
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!user) return null
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -41,10 +72,7 @@ export default async function SettingsPage() {
                     {user.id}
                   </code>
                   <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(user.id)
-                      alert('ID copiato negli appunti!')
-                    }}
+                    onClick={handleCopy}
                     className="text-xs text-primary-600 hover:text-primary-700"
                   >
                     Copia
