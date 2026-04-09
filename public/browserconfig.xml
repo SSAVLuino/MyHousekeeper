@@ -4,9 +4,8 @@
     <tile>
       <square70x70logo src="/windows/icon-70x70.png"/>
       <square150x150logo src="/windows/icon-150x150.png"/>
-      <wide310x150logo src="/windows/icon-310x150.png"/>
       <square310x310logo src="/windows/icon-310x310.png"/>
-      <TileColor>#ea580c</TileColor>
+      <TileColor>#61a5ffc</TileColor>
     </tile>
   </msapplication>
 </browserconfig>
