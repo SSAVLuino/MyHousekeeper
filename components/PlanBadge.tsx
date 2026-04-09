@@ -45,11 +45,22 @@ export default function PlanBadge() {
     }
   }
 
-  if (loading || !limits) {
+  if (loading) {
     return (
       <div className="p-3 bg-gray-100 rounded-lg animate-pulse">
         <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
         <div className="h-3 bg-gray-200 rounded w-32"></div>
+      </div>
+    )
+  }
+
+  if (!limits) {
+    return (
+      <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-xs text-yellow-800 font-medium mb-1">⚠️ Sistema profili non configurato</p>
+        <p className="text-xs text-yellow-700">
+          Esegui la migration SQL per attivare i limiti
+        </p>
       </div>
     )
   }
