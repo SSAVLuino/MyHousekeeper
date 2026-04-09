@@ -397,9 +397,13 @@ export default function ValueListsPage() {
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <code className="text-xs sm:text-sm font-mono text-gray-900 truncate">{item.value}</code>
                         {item.user_id === null ? (
-                          <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" title="Valore globale" />
+                          <span title="Valore globale">
+                            <Globe className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500 flex-shrink-0" />
+                          </span>
                         ) : (
-                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" title="Personalizzato" />
+                          <span title="Personalizzato">
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 text-green-500 flex-shrink-0" />
+                          </span>
                         )}
                       </div>
                       <span className="hidden sm:inline text-sm text-gray-900 truncate">{item.label}</span>
