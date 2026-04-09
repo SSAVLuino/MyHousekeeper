@@ -63,7 +63,7 @@ export default function Sidebar() {
     <>
       {/* Mobile menu button */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-primary-600">Asset Manager</h1>
+        <h1 className="text-xl font-bold text-primary-600">Scadix</h1>
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 rounded-lg hover:bg-gray-100"
@@ -87,8 +87,8 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="p-6 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-primary-600">SCADIX</h1>
-            <p className="text-sm text-gray-500 mt-1">Scadix - Gestione Asset e Scadenze</p>
+            <h1 className="text-2xl font-bold text-primary-600">Scadix</h1>
+            <p className="text-sm text-gray-500 mt-1">Gestione Asset e Scadenze</p>
           </div>
 
           {/* Navigation */}
