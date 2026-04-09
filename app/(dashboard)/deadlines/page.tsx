@@ -100,7 +100,7 @@ export default function DeadlinesPage() {
       console.log('Member projects:', memberProjectIds.length)
 
       // Carica nomi progetti member
-      let memberProjects = []
+      let memberProjects: Project[] = []
       if (memberProjectIds.length > 0) {
         const { data } = await supabase
           .from('projects')
