@@ -20,7 +20,7 @@ async function getProjects() {
     .from('projects')
     .select(`
       *,
-      project_members(count),
+      project_members!inner(count),
       assets(count)
     `)
     .eq('owner_id', user.id)
@@ -28,7 +28,10 @@ async function getProjects() {
   console.log('Owned projects:', ownedProjects?.length || 0)
   if (ownedError) console.error('Owned error:', ownedError)
 
-  // Query 2: ID progetti in cui sei membro
+  // Aggiungi ruolo 'owner' ai progetti owned
+  const ownedWithRole = (ownedProjects || []).map(p => ({ ...p, userRole: 'owner' }))
+
+  // Query 2: ID progetti in cui sei membro (con ruolo)
   const { data: memberships, error: memberError } = await supabase
     .from('project_members')
     .select('project_id, role')
@@ -47,7 +50,7 @@ async function getProjects() {
       .from('projects')
       .select(`
         *,
-        project_members(count),
+        project_members!inner(count),
         assets(count)
       `)
       .in('id', projectIds)
@@ -55,11 +58,15 @@ async function getProjects() {
     console.log('Member projects loaded:', data?.length || 0)
     if (error) console.error('Member projects error:', error)
     
-    memberProjects = data || []
+    // Aggiungi il ruolo ai progetti membro
+    memberProjects = (data || []).map(p => {
+      const membership = memberships.find(m => m.project_id === p.id)
+      return { ...p, userRole: membership?.role || 'viewer' }
+    })
   }
 
   // Combina e rimuovi duplicati
-  const allProjects = [...(ownedProjects || []), ...memberProjects]
+  const allProjects = [...ownedWithRole, ...memberProjects]
   const uniqueProjects = Array.from(
     new Map(allProjects.map(p => [p.id, p])).values()
   ).sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -124,13 +131,24 @@ export default async function ProjectsPage() {
 
                 <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2 flex items-center gap-2">
                   {project.name}
-                  {project.owner_id === user.id ? (
-                    <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded">
-                      Owner
+                  {project.userRole === 'owner' && (
+                    <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded border border-primary-300">
+                      Proprietario
                     </span>
-                  ) : (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
-                      Membro
+                  )}
+                  {project.userRole === 'admin' && (
+                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded border border-purple-300">
+                      Admin
+                    </span>
+                  )}
+                  {project.userRole === 'editor' && (
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-300">
+                      Editor
+                    </span>
+                  )}
+                  {project.userRole === 'viewer' && (
+                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-300">
+                      Viewer
                     </span>
                   )}
                 </h3>
@@ -161,13 +179,25 @@ export default async function ProjectsPage() {
               </Link>
 
               <div className="px-3 sm:px-6 py-2 sm:py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs sm:text-sm">
-                <Link
-                  href={`/projects/${project.id}/edit`}
-                  className="text-primary-600 hover:text-primary-700 font-medium"
-                >
-                  Modifica
-                </Link>
-                <DeleteProjectButton projectId={project.id} projectName={project.name} />
+                {/* Modifica: owner o admin */}
+                {(project.userRole === 'owner' || project.userRole === 'admin') && (
+                  <Link
+                    href={`/projects/${project.id}/edit`}
+                    className="text-primary-600 hover:text-primary-700 font-medium"
+                  >
+                    Modifica
+                  </Link>
+                )}
+                
+                {/* Spacer se non può modificare */}
+                {project.userRole !== 'owner' && project.userRole !== 'admin' && (
+                  <div></div>
+                )}
+                
+                {/* Elimina: solo owner */}
+                {project.userRole === 'owner' && (
+                  <DeleteProjectButton projectId={project.id} projectName={project.name} />
+                )}
               </div>
             </div>
           ))}
