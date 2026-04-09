@@ -25,37 +25,63 @@ export async function getUserLimits(
   supabase: SupabaseClient,
   userId: string
 ): Promise<UserLimits | null> {
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select(`
-      *,
-      subscription_plans (
-        id,
-        name,
-        label,
-        max_projects,
-        max_assets,
-        max_deadlines,
-        can_edit_value_lists,
-        can_access_admin
-      )
-    `)
-    .eq('user_id', userId)
-    .eq('subscription_status', 'active')
-    .single()
+  try {
+    console.log('getUserLimits - userId:', userId)
+    
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        subscription_plans (
+          id,
+          name,
+          label,
+          max_projects,
+          max_assets,
+          max_deadlines,
+          can_edit_value_lists,
+          can_access_admin
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('subscription_status', 'active')
+      .single()
 
-  if (!profile || !profile.subscription_plans) return null
+    console.log('getUserLimits - profile:', profile)
+    console.log('getUserLimits - error:', error)
 
-  const plan = profile.subscription_plans
+    if (error) {
+      console.error('getUserLimits - Supabase error:', error)
+      return null
+    }
 
-  return {
-    maxProjects: profile.custom_max_projects ?? plan.max_projects,
-    maxAssets: profile.custom_max_assets ?? plan.max_assets,
-    maxDeadlines: profile.custom_max_deadlines ?? plan.max_deadlines,
-    canEditValueLists: profile.custom_can_edit_value_lists ?? plan.can_edit_value_lists,
-    canAccessAdmin: plan.can_access_admin,
-    planName: plan.label,
-    planId: plan.id,
+    if (!profile) {
+      console.log('getUserLimits - No profile found')
+      return null
+    }
+
+    if (!profile.subscription_plans) {
+      console.log('getUserLimits - No subscription_plans in profile')
+      return null
+    }
+
+    const plan = profile.subscription_plans
+
+    const result = {
+      maxProjects: profile.custom_max_projects ?? plan.max_projects,
+      maxAssets: profile.custom_max_assets ?? plan.max_assets,
+      maxDeadlines: profile.custom_max_deadlines ?? plan.max_deadlines,
+      canEditValueLists: profile.custom_can_edit_value_lists ?? plan.can_edit_value_lists,
+      canAccessAdmin: plan.can_access_admin,
+      planName: plan.label,
+      planId: plan.id,
+    }
+
+    console.log('getUserLimits - result:', result)
+    return result
+  } catch (error) {
+    console.error('getUserLimits - catch error:', error)
+    return null
   }
 }
 
@@ -67,52 +93,64 @@ export async function checkLimit(
   userId: string,
   type: 'projects' | 'assets' | 'deadlines'
 ): Promise<LimitCheckResult> {
-  const limits = await getUserLimits(supabase, userId)
-  
-  if (!limits) {
-    return {
-      allowed: false,
-      current: 0,
-      max: 0,
-      message: 'Profilo utente non trovato'
+  try {
+    const limits = await getUserLimits(supabase, userId)
+    
+    if (!limits) {
+      // Se non ci sono limiti (tabelle non esistono), consenti tutto
+      return {
+        allowed: true,
+        current: 0,
+        max: null,
+        message: 'Sistema limiti non configurato'
+      }
     }
-  }
 
-  // Determina il limite massimo
-  const maxLimit = type === 'projects' ? limits.maxProjects
-                 : type === 'assets' ? limits.maxAssets
-                 : limits.maxDeadlines
+    // Determina il limite massimo
+    const maxLimit = type === 'projects' ? limits.maxProjects
+                   : type === 'assets' ? limits.maxAssets
+                   : limits.maxDeadlines
 
-  // NULL = illimitato
-  if (maxLimit === null) {
+    // NULL = illimitato
+    if (maxLimit === null) {
+      return {
+        allowed: true,
+        current: 0,
+        max: null,
+        planName: limits.planName
+      }
+    }
+
+    // Conta risorse attuali dell'utente
+    const tableName = type
+    const userField = type === 'projects' ? 'owner_id' : 'user_id'
+
+    const { count } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact', head: true })
+      .eq(userField, userId)
+
+    const current = count || 0
+    const allowed = current < maxLimit
+
+    return {
+      allowed,
+      current,
+      max: maxLimit,
+      planName: limits.planName,
+      message: allowed ? undefined : 
+        `Limite raggiunto: ${current}/${maxLimit} ${type}. 
+         Passa a un piano superiore per aumentare i limiti.`
+    }
+  } catch (error) {
+    console.error('checkLimit error:', error)
+    // In caso di errore, consenti la creazione
     return {
       allowed: true,
       current: 0,
       max: null,
-      planName: limits.planName
+      message: 'Controllo limiti non disponibile'
     }
-  }
-
-  // Conta risorse attuali dell'utente
-  const tableName = type
-  const userField = type === 'projects' ? 'owner_id' : 'user_id'
-
-  const { count } = await supabase
-    .from(tableName)
-    .select('*', { count: 'exact', head: true })
-    .eq(userField, userId)
-
-  const current = count || 0
-  const allowed = current < maxLimit
-
-  return {
-    allowed,
-    current,
-    max: maxLimit,
-    planName: limits.planName,
-    message: allowed ? undefined : 
-      `Limite raggiunto: ${current}/${maxLimit} ${type}. 
-       Passa a un piano superiore per aumentare i limiti.`
   }
 }
 
