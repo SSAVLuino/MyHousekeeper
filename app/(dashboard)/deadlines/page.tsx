@@ -16,8 +16,9 @@ interface Deadline {
   notes: string | null
   project_id: string | null
   asset_id: string | null
-  projects?: { name: string } | null
+  projects?: { id: string; name: string; owner_id: string } | null
   assets?: { name: string } | null
+  userRole?: 'owner' | 'admin' | 'editor' | 'viewer'
 }
 
 interface Project {
@@ -77,28 +78,73 @@ export default function DeadlinesPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Carica progetti
-      const { data: userProjects } = await supabase
+      console.log('=== loadDeadlines Debug ===')
+      console.log('user.id:', user.id)
+
+      // Carica progetti owned
+      const { data: ownedProjects } = await supabase
         .from('projects')
         .select('id, name')
         .eq('owner_id', user.id)
-        .order('name')
 
-      setProjects(userProjects || [])
-      const projectIds = userProjects?.map(p => p.id) || []
+      const ownedProjectIds = ownedProjects?.map(p => p.id) || []
+      console.log('Owned projects:', ownedProjectIds.length)
 
-      // Carica scadenze
+      // Carica progetti member
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('project_id, role')
+        .eq('user_id', user.id)
+
+      const memberProjectIds = memberships?.map(m => m.project_id) || []
+      console.log('Member projects:', memberProjectIds.length)
+
+      // Carica nomi progetti member
+      let memberProjects = []
+      if (memberProjectIds.length > 0) {
+        const { data } = await supabase
+          .from('projects')
+          .select('id, name')
+          .in('id', memberProjectIds)
+        
+        memberProjects = data || []
+      }
+
+      // Combina tutti i progetti accessibili
+      const allProjects = [...(ownedProjects || []), ...memberProjects]
+      setProjects(allProjects)
+
+      const allProjectIds = [...new Set([...ownedProjectIds, ...memberProjectIds])]
+      console.log('Total accessible projects:', allProjectIds.length)
+
+      // Carica scadenze da tutti i progetti accessibili
       const { data: deadlinesData } = await supabase
         .from('deadlines')
         .select(`
           *,
-          projects(name),
+          projects(id, name, owner_id),
           assets(name)
         `)
-        .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
+        .in('project_id', allProjectIds.length > 0 ? allProjectIds : ['00000000-0000-0000-0000-000000000000'])
         .order('due_date', { ascending: true })
 
-      setDeadlines(deadlinesData || [])
+      console.log('Deadlines loaded:', deadlinesData?.length || 0)
+
+      // Aggiungi ruolo a ogni deadline
+      const deadlinesWithRole = (deadlinesData || []).map(deadline => {
+        let userRole = 'viewer'
+        if (deadline.projects?.owner_id === user.id) {
+          userRole = 'owner'
+        } else {
+          const membership = memberships?.find(m => m.project_id === deadline.project_id)
+          userRole = membership?.role || 'viewer'
+        }
+        
+        return { ...deadline, userRole }
+      })
+
+      setDeadlines(deadlinesWithRole)
+      console.log('=== End Debug ===\n')
 
       // Carica assets
       const { data: assetsData } = await supabase
