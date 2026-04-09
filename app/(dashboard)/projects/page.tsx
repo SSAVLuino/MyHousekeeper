@@ -1,232 +1,120 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { FolderKanban, Package, Calendar, AlertCircle, CheckCircle2 } from 'lucide-react'
 import Link from 'next/link'
-import { format, parseISO, isBefore, addDays } from 'date-fns'
+import { Plus, FolderKanban, Users } from 'lucide-react'
+import { format } from 'date-fns'
 import { it } from 'date-fns/locale'
+import DeleteProjectButton from './[id]/DeleteProjectButton'
 
-async function getDashboardData() {
+async function getProjects() {
   const supabase = createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Progetti dell'utente (come owner o membro)
-  const { data: userProjects } = await supabase
+  const { data: projects, error } = await supabase
     .from('projects')
-    .select('id')
-    .or(`owner_id.eq.${user.id}`)
-
-  const projectIds = userProjects?.map(p => p.id) || []
-
-  // Statistiche
-  const { count: projectsCount } = await supabase
-    .from('projects')
-    .select('*', { count: 'exact', head: true })
-    .or(`owner_id.eq.${user.id}`)
-
-  const { count: assetsCount } = await supabase
-    .from('assets')
-    .select('*', { count: 'exact', head: true })
-    .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
-
-  const { count: deadlinesCount } = await supabase
-    .from('deadlines')
-    .select('*', { count: 'exact', head: true })
-    .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
-
-  // Scadenze imminenti (prossimi 7 giorni)
-  const today = new Date().toISOString().split('T')[0]
-  const nextWeek = addDays(new Date(), 7).toISOString().split('T')[0]
-
-  const { data: upcomingDeadlines } = await supabase
-    .from('deadlines')
     .select(`
       *,
-      assets(name),
-      projects(name)
+      project_members(count),
+      assets(count)
     `)
-    .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
-    .gte('due_date', today)
-    .lte('due_date', nextWeek)
-    .order('due_date', { ascending: true })
-    .limit(5)
+    .eq('owner_id', user.id)
+    .order('created_at', { ascending: false })
 
-  // Scadenze scadute
-  const { data: overdueDeadlines } = await supabase
-    .from('deadlines')
-    .select(`
-      *,
-      assets(name),
-      projects(name)
-    `)
-    .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
-    .lt('due_date', today)
-    .order('due_date', { ascending: false })
-    .limit(5)
-
-  return {
-    user,
-    stats: {
-      projects: projectsCount || 0,
-      assets: assetsCount || 0,
-      deadlines: deadlinesCount || 0,
-    },
-    upcomingDeadlines: upcomingDeadlines || [],
-    overdueDeadlines: overdueDeadlines || [],
-  }
+  return { projects: projects || [] }
 }
 
-export default async function DashboardPage() {
-  const { user, stats, upcomingDeadlines, overdueDeadlines } = await getDashboardData()
+export default async function ProjectsPage() {
+  const { projects } = await getProjects()
 
   return (
-    <div className="p-3 sm:p-6 max-w-7xl mx-auto">
+    <div className="page-container">
       {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm sm:text-base text-gray-600 mt-1">Benvenuto, {user.email}</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-3 gap-3 sm:gap-6 mb-8">
-        <Link href="/projects" className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 hover:shadow-md transition-shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm text-gray-600 mb-1">Progetti</p>
-              <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.projects}</p>
-            </div>
-            <div className="h-8 w-8 sm:h-12 sm:w-12 bg-primary-100 rounded-lg flex items-center justify-center">
-              <FolderKanban className="h-4 w-4 sm:h-6 sm:w-6 text-primary-600" />
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/assets" className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 hover:shadow-md transition-shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm text-gray-600 mb-1">Asset</p>
-              <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.assets}</p>
-            </div>
-            <div className="h-8 w-8 sm:h-12 sm:w-12 bg-green-100 rounded-lg flex items-center justify-center">
-              <Package className="h-4 w-4 sm:h-6 sm:w-6 text-green-600" />
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/deadlines" className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6 hover:shadow-md transition-shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div className="mb-2 sm:mb-0">
-              <p className="text-xs sm:text-sm text-gray-600 mb-1">Scadenze</p>
-              <p className="text-xl sm:text-3xl font-bold text-gray-900">{stats.deadlines}</p>
-            </div>
-            <div className="h-8 w-8 sm:h-12 sm:w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Calendar className="h-4 w-4 sm:h-6 sm:w-6 text-orange-600" />
-            </div>
-          </div>
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Scadenze Scadute */}
-        {overdueDeadlines.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
-            <div className="bg-red-50 px-6 py-4 border-b border-red-200">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-red-600" />
-                <h2 className="text-lg font-semibold text-red-900">Scadenze Scadute</h2>
-              </div>
-            </div>
-            <div className="divide-y divide-gray-200">
-              {overdueDeadlines.map((deadline: any) => (
-                <Link
-                  key={deadline.id}
-                  href={`/deadlines/${deadline.id}`}
-                  className="block px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{deadline.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {deadline.projects?.name || deadline.assets?.name || 'Nessun progetto'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-red-600">
-                        {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{deadline.category}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Scadenze Imminenti */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary-600" />
-              <h2 className="text-lg font-semibold text-gray-900">Prossime Scadenze</h2>
-            </div>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {upcomingDeadlines.length > 0 ? (
-              upcomingDeadlines.map((deadline: any) => (
-                <Link
-                  key={deadline.id}
-                  href={`/deadlines/${deadline.id}`}
-                  className="block px-6 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gray-900">{deadline.title}</h3>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {deadline.projects?.name || deadline.assets?.name || 'Nessun progetto'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-sm font-medium text-orange-600">
-                        {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">{deadline.category}</p>
-                    </div>
-                  </div>
-                </Link>
-              ))
-            ) : (
-              <div className="px-6 py-8 text-center text-gray-500">
-                <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-gray-300" />
-                <p>Nessuna scadenza imminente</p>
-              </div>
-            )}
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-3">
+        <div>
+          <h1 className="page-title">Progetti</h1>
+          <p className="page-subtitle">Gestisci i tuoi progetti</p>
         </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/projects/new"
-          className="bg-primary-600 text-white rounded-lg p-4 text-center font-medium hover:bg-primary-700 transition-colors"
+          className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
         >
-          + Nuovo Progetto
-        </Link>
-        <Link
-          href="/assets/new"
-          className="bg-green-600 text-white rounded-lg p-4 text-center font-medium hover:bg-green-700 transition-colors"
-        >
-          + Nuovo Asset
-        </Link>
-        <Link
-          href="/deadlines/new"
-          className="bg-orange-600 text-white rounded-lg p-4 text-center font-medium hover:bg-orange-700 transition-colors"
-        >
-          + Nuova Scadenza
+          <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+          Nuovo Progetto
         </Link>
       </div>
+
+      {/* Projects Grid */}
+      {projects.length === 0 ? (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-12 text-center">
+          <FolderKanban className="h-16 w-16 mx-auto text-gray-300 mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Nessun progetto</h3>
+          <p className="text-gray-600 mb-6">Inizia creando il tuo primo progetto</p>
+          <Link
+            href="/projects/new"
+            className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Crea Progetto
+          </Link>
+        </div>
+      ) : (
+        <div className="card-grid-2">
+          {projects.map((project: any) => (
+            <div
+              key={project.id}
+              className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
+            >
+              <Link href={`/projects/${project.id}`} className="block p-3 sm:p-6">
+                <div className="flex items-start justify-between mb-3 sm:mb-4">
+                  <div className="h-8 w-8 sm:h-12 sm:w-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <FolderKanban className="h-4 w-4 sm:h-6 sm:w-6 text-primary-600" />
+                  </div>
+                </div>
+
+                <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2">
+                  {project.name}
+                </h3>
+                
+                {project.description && (
+                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2 hidden sm:block">
+                    {project.description}
+                  </p>
+                )}
+
+                <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span>{project.project_members?.[0]?.count || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <FolderKanban className="h-3 w-3 sm:h-4 sm:w-4" />
+                    <span className="hidden sm:inline">{project.assets?.[0]?.count || 0} asset</span>
+                    <span className="sm:hidden">{project.assets?.[0]?.count || 0}</span>
+                  </div>
+                </div>
+
+                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100">
+                  <p className="text-xs text-gray-500">
+                    {format(new Date(project.created_at), 'dd/MM/yy', { locale: it })}
+                  </p>
+                </div>
+              </Link>
+
+              <div className="px-3 sm:px-6 py-2 sm:py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs sm:text-sm">
+                <Link
+                  href={`/projects/${project.id}/edit`}
+                  className="text-primary-600 hover:text-primary-700 font-medium"
+                >
+                  Modifica
+                </Link>
+                <DeleteProjectButton projectId={project.id} projectName={project.name} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
