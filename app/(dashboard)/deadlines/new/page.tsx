@@ -43,27 +43,23 @@ function NewDeadlineForm() {
     }
   }, [projectId])
 
-  const loadData = async () {
+  const loadData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      // Carica categorie dalla value_lists (default + personali)
       const cats = await loadValueLists(supabase, 'deadline_category', user.id, true)
       setCategories(cats)
 
-      // Carica frequenze dalla value_lists (default + personali)
       const freqs = await loadValueLists(supabase, 'deadline_frequency', user.id, true)
       setFrequencies(freqs)
 
-      // Carica progetti owned
       const { data: ownedProjects } = await supabase
         .from('projects')
         .select('id, name')
         .eq('owner_id', user.id)
         .order('name')
 
-      // Carica progetti member (solo admin/editor possono creare scadenze)
       const { data: memberships } = await supabase
         .from('project_members')
         .select('project_id, role')
@@ -83,11 +79,9 @@ function NewDeadlineForm() {
         memberProjects = data || []
       }
 
-      // Combina tutti i progetti accessibili
       const allProjects = [...(ownedProjects || []), ...memberProjects]
       setProjects(allProjects)
 
-      // Se c'è un assetId, carica l'asset e il suo progetto
       if (assetIdFromQuery) {
         const { data: assetData } = await supabase
           .from('assets')
@@ -96,14 +90,10 @@ function NewDeadlineForm() {
           .single()
 
         if (assetData && assetData.project_id) {
-          // Imposta il progetto dell'asset
           setProjectId(assetData.project_id)
-          // Carica gli asset di quel progetto
           await loadAssets(assetData.project_id)
         }
-      } 
-      // Altrimenti, se c'è solo un projectId, carica gli asset
-      else if (projectIdFromQuery) {
+      } else if (projectIdFromQuery) {
         await loadAssets(projectIdFromQuery)
       }
     } catch (error: any) {
@@ -132,17 +122,15 @@ function NewDeadlineForm() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) throw new Error('Non autenticato')
 
-      // ⭐ CONTROLLO LIMITI - Verifica se può creare una nuova scadenza
       const limitCheck = await checkLimit(supabase, user.id, 'deadlines')
       
       if (!limitCheck.allowed) {
         setError(limitCheck.message || 'Limite scadenze raggiunto')
         setLoading(false)
-        return // ⚠️ BLOCCA la creazione
+        return
       }
 
-      // ✅ Limite OK - Procedi con la creazione
-      const { error } = await supabase
+      const { error: insertError } = await supabase
         .from('deadlines')
         .insert({
           title,
@@ -155,7 +143,7 @@ function NewDeadlineForm() {
           user_id: user.id,
         })
 
-      if (error) throw error
+      if (insertError) throw insertError
 
       router.push('/deadlines')
       router.refresh()
@@ -171,7 +159,7 @@ function NewDeadlineForm() {
       <div className="p-6 max-w-3xl mx-auto">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
         </div>
       </div>
     )
@@ -191,160 +179,146 @@ function NewDeadlineForm() {
         <p className="text-gray-600 mt-1">Crea una nuova scadenza</p>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
-              {error}
-            </div>
-          )}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
+          <AlertCircle className="h-5 w-5" />
+          {error}
+        </div>
+      )}
 
+      <form onSubmit={handleSubmit} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Titolo *
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="es. Scadenza fiscale"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Categoria *
+          </label>
+          <select
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          >
+            <option value="">Seleziona categoria</option>
+            {categories.map((cat) => (
+              <option key={cat.value} value={cat.value}>
+                {cat.value}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Data Scadenza *
+          </label>
+          <input
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Frequenza (opzionale)
+          </label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          >
+            <option value="">Nessuna</option>
+            {frequencies.map((freq) => (
+              <option key={freq.value} value={freq.value}>
+                {freq.value}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Progetto (opzionale)
+          </label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+          >
+            <option value="">Nessun progetto</option>
+            {projects.map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {projectId && assets.length > 0 && (
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-              Titolo *
-            </label>
-            <input
-              type="text"
-              id="title"
-              required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="es. Pagamento IMU"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-                Categoria *
-              </label>
-              <select
-                id="category"
-                required
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              >
-                <option value="">Seleziona categoria</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.value}>
-                    {cat.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-2">
-                Data Scadenza *
-              </label>
-              <input
-                type="date"
-                id="dueDate"
-                required
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="frequency" className="block text-sm font-medium text-gray-700 mb-2">
-              Frequenza
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Asset (opzionale)
             </label>
             <select
-              id="frequency"
-              value={frequency}
-              onChange={(e) => setFrequency(e.target.value)}
+              value={assetId}
+              onChange={(e) => setAssetId(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             >
-              <option value="">Nessuna ricorrenza</option>
-              {frequencies.map((freq) => (
-                <option key={freq.id} value={freq.value}>
-                  {freq.label}
+              <option value="">Nessun asset</option>
+              {assets.map((asset) => (
+                <option key={asset.id} value={asset.id}>
+                  {asset.name}
                 </option>
               ))}
             </select>
           </div>
+        )}
 
-          <div>
-            <label htmlFor="projectId" className="block text-sm font-medium text-gray-700 mb-2">
-              Progetto *
-            </label>
-            <select
-              id="projectId"
-              required
-              value={projectId}
-              onChange={(e) => {
-                setProjectId(e.target.value)
-                setAssetId('') // Reset asset quando cambia progetto
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            >
-              <option value="">Seleziona progetto</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Note (opzionale)
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={4}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            placeholder="Note aggiuntive..."
+          />
+        </div>
 
-          {projectId && assets.length > 0 && (
-            <div>
-              <label htmlFor="assetId" className="block text-sm font-medium text-gray-700 mb-2">
-                Asset (opzionale)
-              </label>
-              <select
-                id="assetId"
-                value={assetId}
-                onChange={(e) => setAssetId(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              >
-                <option value="">Nessun asset specifico</option>
-                {assets.map((asset) => (
-                  <option key={asset.id} value={asset.id}>
-                    {asset.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700 mb-2">
-              Note
-            </label>
-            <textarea
-              id="notes"
-              rows={4}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              placeholder="Aggiungi note o dettagli..."
-            />
-          </div>
-
-          <div className="flex items-center gap-4 pt-4">
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex items-center gap-2 bg-orange-600 text-white px-6 py-2.5 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50"
-            >
-              <Save className="h-5 w-5" />
-              {loading ? 'Salvataggio...' : 'Salva Scadenza'}
-            </button>
-            <Link
-              href="/deadlines"
-              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              Annulla
-            </Link>
-          </div>
-        </form>
-      </div>
+        <div className="flex items-center gap-3 pt-4">
+          <button
+            type="submit"
+            disabled={loading}
+            className="flex-1 bg-orange-600 text-white px-6 py-3 rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Save className="h-5 w-5" />
+            {loading ? 'Creazione...' : 'Crea Scadenza'}
+          </button>
+          <Link
+            href="/deadlines"
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Annulla
+          </Link>
+        </div>
+      </form>
     </div>
   )
 }
