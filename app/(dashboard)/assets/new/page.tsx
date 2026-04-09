@@ -39,14 +39,35 @@ function NewAssetForm() {
       const types = await loadValueLists(supabase, 'asset_type', user.id, true)
       setAssetTypes(types)
 
-      // Carica progetti dell'utente
-      const { data: userProjects } = await supabase
+      // Carica progetti owned
+      const { data: ownedProjects } = await supabase
         .from('projects')
-        .select('*')
+        .select('id, name')
         .eq('owner_id', user.id)
         .order('name')
 
-      setProjects(userProjects || [])
+      // Carica progetti member (solo admin/editor possono creare asset)
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('project_id, role')
+        .eq('user_id', user.id)
+        .in('role', ['admin', 'editor'])
+
+      const memberProjectIds = memberships?.map(m => m.project_id) || []
+      
+      let memberProjects: any[] = []
+      if (memberProjectIds.length > 0) {
+        const { data } = await supabase
+          .from('projects')
+          .select('id, name')
+          .in('id', memberProjectIds)
+          .order('name')
+        
+        memberProjects = data || []
+      }
+
+      const allProjects = [...(ownedProjects || []), ...memberProjects]
+      setProjects(allProjects)
     } catch (error: any) {
       console.error('Errore caricamento dati:', error)
     } finally {
