@@ -138,7 +138,7 @@ export default async function AssetDetailPage({ params }: { params: { id: string
                 <span className="text-sm text-gray-500">({asset.deadlines?.length || 0})</span>
               </div>
               <Link
-                href={`/deadlines/new?project_id=${asset.project_id}`}
+                href={`/deadlines/new?project_id=${asset.project_id}&asset_id=${asset.id}`}
                 className="text-sm text-orange-600 hover:text-orange-700 font-medium"
               >
                 + Aggiungi
