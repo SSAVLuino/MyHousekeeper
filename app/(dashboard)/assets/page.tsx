@@ -12,28 +12,65 @@ async function getAssets() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Ottieni i progetti dell'utente
-  const { data: userProjects } = await supabase
+  console.log('=== getAssets Debug ===')
+  console.log('user.id:', user.id)
+
+  // Query 1: Progetti di cui sei proprietario
+  const { data: ownedProjects } = await supabase
     .from('projects')
     .select('id')
     .eq('owner_id', user.id)
 
-  const projectIds = userProjects?.map(p => p.id) || []
+  const ownedProjectIds = ownedProjects?.map(p => p.id) || []
+  console.log('Owned project IDs:', ownedProjectIds.length)
 
+  // Query 2: Progetti in cui sei membro
+  const { data: memberships } = await supabase
+    .from('project_members')
+    .select('project_id, role')
+    .eq('user_id', user.id)
+
+  const memberProjectIds = memberships?.map(m => m.project_id) || []
+  console.log('Member project IDs:', memberProjectIds.length)
+
+  // Combina tutti gli ID progetti accessibili
+  const allProjectIds = [...new Set([...ownedProjectIds, ...memberProjectIds])]
+  console.log('Total accessible projects:', allProjectIds.length)
+
+  // Query 3: Carica asset da tutti i progetti accessibili
   const { data: assets, error } = await supabase
     .from('assets')
     .select(`
       *,
-      projects(name)
+      projects(id, name, owner_id)
     `)
-    .in('project_id', projectIds.length > 0 ? projectIds : ['00000000-0000-0000-0000-000000000000'])
+    .in('project_id', allProjectIds.length > 0 ? allProjectIds : ['00000000-0000-0000-0000-000000000000'])
     .order('created_at', { ascending: false })
 
-  return { assets: assets || [] }
+  console.log('Assets loaded:', assets?.length || 0)
+  if (error) console.error('Assets error:', error)
+
+  // Aggiungi il ruolo dell'utente per ogni asset
+  const assetsWithRole = (assets || []).map(asset => {
+    // Determina il ruolo
+    let userRole = 'viewer'
+    if (asset.projects?.owner_id === user.id) {
+      userRole = 'owner'
+    } else {
+      const membership = memberships?.find(m => m.project_id === asset.project_id)
+      userRole = membership?.role || 'viewer'
+    }
+    
+    return { ...asset, userRole }
+  })
+
+  console.log('=== End Debug ===\n')
+
+  return { assets: assetsWithRole, userId: user.id }
 }
 
 export default async function AssetsPage() {
-  const { assets } = await getAssets()
+  const { assets, userId } = await getAssets()
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -81,6 +118,9 @@ export default async function AssetsPage() {
                   Progetto
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Ruolo
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Creato il
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -102,17 +142,51 @@ export default async function AssetsPage() {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-sm text-gray-600">{asset.projects?.name || 'N/A'}</span>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {asset.userRole === 'owner' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-100 text-primary-700 border border-primary-300">
+                        Proprietario
+                      </span>
+                    )}
+                    {asset.userRole === 'admin' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700 border border-purple-300">
+                        Admin
+                      </span>
+                    )}
+                    {asset.userRole === 'editor' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700 border border-blue-300">
+                        Editor
+                      </span>
+                    )}
+                    {asset.userRole === 'viewer' && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700 border border-gray-300">
+                        Viewer
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {format(new Date(asset.created_at), 'dd MMM yyyy', { locale: it })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                    <Link
-                      href={`/assets/${asset.id}/edit`}
-                      className="text-primary-600 hover:text-primary-700"
-                    >
-                      Modifica
-                    </Link>
-                    <DeleteAssetButton assetId={asset.id} assetName={asset.name} />
+                    {/* Modifica: owner, admin, editor */}
+                    {(asset.userRole === 'owner' || asset.userRole === 'admin' || asset.userRole === 'editor') && (
+                      <Link
+                        href={`/assets/${asset.id}/edit`}
+                        className="text-primary-600 hover:text-primary-700"
+                      >
+                        Modifica
+                      </Link>
+                    )}
+                    
+                    {/* Elimina: solo owner e admin */}
+                    {(asset.userRole === 'owner' || asset.userRole === 'admin') && (
+                      <DeleteAssetButton assetId={asset.id} assetName={asset.name} />
+                    )}
+                    
+                    {/* Viewer: nessuna azione */}
+                    {asset.userRole === 'viewer' && (
+                      <span className="text-gray-400 text-xs">Solo lettura</span>
+                    )}
                   </td>
                 </tr>
               ))}
