@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { ArrowLeft, Check } from 'lucide-react'
+import { ArrowLeft, Check, Mail } from 'lucide-react'
 import Link from 'next/link'
 
 interface Plan {
@@ -20,6 +20,8 @@ interface Plan {
 export default function UpgradePage() {
   const [plans, setPlans] = useState<Plan[]>([])
   const [currentPlanId, setCurrentPlanId] = useState<string | null>(null)
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
   const supabase = createClient()
@@ -33,6 +35,9 @@ export default function UpgradePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
+      setUserEmail(user.email || null)
+      setUserId(user.id)
+
       // Carica user plan attuale
       const { data: profile } = await supabase
         .from('user_profiles')
@@ -42,11 +47,12 @@ export default function UpgradePage() {
 
       if (profile) setCurrentPlanId(profile.plan_id)
 
-      // Carica tutti i piani
+      // Carica tutti i piani (escluso admin)
       const { data: allPlans } = await supabase
         .from('subscription_plans')
         .select('*')
         .eq('is_active', true)
+        .not('name', 'eq', 'admin')
         .order('display_order')
 
       setPlans(allPlans || [])
@@ -59,6 +65,11 @@ export default function UpgradePage() {
 
   const formatLimit = (limit: number | null) => {
     return limit === null ? 'Illimitati' : limit.toString()
+  }
+
+  const formatPrice = (price: number | null) => {
+    if (price === 0 || price === null) return 'Gratuito'
+    return `€${(price * 12).toFixed(2)}/anno`
   }
 
   if (loading) return <div className="p-12 text-center">Caricamento...</div>
@@ -80,7 +91,7 @@ export default function UpgradePage() {
         </p>
 
         {/* Grid Piani */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {plans.map((plan) => {
             const isCurrentPlan = plan.id === currentPlanId
             const isFree = plan.price === 0 || plan.price === null
@@ -102,17 +113,9 @@ export default function UpgradePage() {
                       {plan.description}
                     </p>
                   )}
-                  {!isFree && plan.price && (
-                    <div className="mt-4">
-                      <span className="text-3xl font-bold">€{plan.price}</span>
-                      <span className={`text-sm ${isCurrentPlan ? 'text-primary-100' : 'text-gray-600'}`}>
-                        /mese
-                      </span>
-                    </div>
-                  )}
-                  {isFree && (
-                    <div className="mt-4 text-2xl font-bold">Gratuito</div>
-                  )}
+                  <div className="mt-4 text-3xl font-bold">
+                    {formatPrice(plan.price)}
+                  </div>
                 </div>
 
                 {/* Features */}
@@ -150,21 +153,42 @@ export default function UpgradePage() {
                     </li>
                   </ul>
 
-                  {/* Button */}
-                  <button
-                    disabled={isCurrentPlan}
-                    className={`w-full mt-6 py-2 px-4 rounded-lg font-semibold transition-colors ${
-                      isCurrentPlan
-                        ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                        : 'bg-primary-600 text-white hover:bg-primary-700'
-                    }`}
-                  >
-                    {isCurrentPlan ? '✓ Piano Attuale' : 'Seleziona'}
-                  </button>
+                  {isCurrentPlan && (
+                    <div className="mt-6 text-center py-2 px-4 rounded-lg bg-primary-600 text-white font-semibold">
+                      ✓ Piano Attuale
+                    </div>
+                  )}
                 </div>
               </div>
             )
           })}
+        </div>
+
+        {/* Banner Email */}
+        <div className="bg-gradient-to-r from-primary-50 to-green-50 rounded-xl p-8 border-2 border-primary-200">
+          <div className="flex items-start gap-4">
+            <div className="flex-shrink-0">
+              <Mail className="h-12 w-12 text-primary-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                Richiedi l'upgrade
+              </h3>
+              <p className="text-gray-700 mb-4">
+                Per passare a un piano superiore, invia una email a:
+              </p>
+              
+                href={`mailto:scadix@cesena.biz?subject=Richiesta upgrade a Premium - Scadix&body=Ciao,%0D%0A%0D%0ASono interessato a passare a un piano superiore di Scadix.%0D%0A%0D%0AIl mio account: ${userEmail}%0D%0AID utente: ${userId}%0D%0A%0D%0AAttendo vostre comunicazioni.%0D%0A%0D%0AGrazie`}
+                className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold text-lg"
+              >
+                <Mail className="h-5 w-5" />
+                scadix@cesena.biz
+              </a>
+              <p className="text-sm text-gray-600 mt-4">
+                Ti risponderemo entro 24 ore con i dettagli per completare l'upgrade
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
