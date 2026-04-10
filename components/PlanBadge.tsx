@@ -182,8 +182,7 @@ export default function PlanBadge() {
             <ChevronRight className={`h-3.5 w-3.5 transition-transform flex-shrink-0 ${
               expandedUpgrades ? 'rotate-90' : ''
             }`} />
-          </button>
-          )}
+          </button>       
         </div>
       )}
 
