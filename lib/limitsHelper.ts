@@ -172,8 +172,27 @@ export async function canEditValueLists(
   supabase: SupabaseClient,
   userId: string
 ): Promise<boolean> {
-  const limits = await getUserLimits(supabase, userId)
-  return limits?.canEditValueLists || false
+  try {
+    const { data: profile, error } = await supabase
+      .from('user_profiles')
+      .select(`
+        subscription_plans (
+          can_edit_value_lists
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('subscription_status', 'active')
+      .single()
+
+    if (error || !profile?.subscription_plans) {
+      return false
+    }
+
+    return profile.subscription_plans.can_edit_value_lists || false
+  } catch (error) {
+    console.error('canEditValueLists error:', error)
+    return false
+  }
 }
 
 /**
