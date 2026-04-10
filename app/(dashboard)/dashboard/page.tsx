@@ -248,19 +248,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          href="/projects/new"
-          className="bg-primary-600 text-white rounded-lg p-4 text-center font-medium hover:bg-primary-700 transition-colors"
-        >
-          + Nuovo Progetto
-        </Link>
-        <Link
-          href="/assets/new"
-          className="bg-green-600 text-white rounded-lg p-4 text-center font-medium hover:bg-green-700 transition-colors"
-        >
-          + Nuovo Asset
-        </Link>
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">     
         <Link
           href="/deadlines/new"
           className="bg-orange-600 text-white rounded-lg p-4 text-center font-medium hover:bg-orange-700 transition-colors"
