@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { List, Plus, Edit2, Trash2, Save, X, Globe, User } from 'lucide-react'
+import { canEditValueLists } from '@/lib/limitsHelper'
+import { List, Plus, Edit2, Trash2, Save, X, Globe, User, Lock } from 'lucide-react'
+import Link from 'next/link'
 
 interface ValueListItem {
   id: string
@@ -26,6 +28,8 @@ export default function ValueListsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isAdding, setIsAdding] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [canEdit, setCanEdit] = useState(false)
+  const [checkingPermissions, setCheckingPermissions] = useState(true)
   
   // Form state
   const [formValue, setFormValue] = useState('')
@@ -40,6 +44,7 @@ export default function ValueListsPage() {
 
   useEffect(() => {
     if (currentUserId) {
+      checkPermissions()
       loadItems()
     }
   }, [selectedCategory, currentUserId])
@@ -47,6 +52,20 @@ export default function ValueListsPage() {
   const loadUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     setCurrentUserId(user?.id || null)
+  }
+
+  const checkPermissions = async () => {
+    if (!currentUserId) return
+    setCheckingPermissions(true)
+    try {
+      const hasPermission = await canEditValueLists(supabase, currentUserId)
+      setCanEdit(hasPermission)
+    } catch (error) {
+      console.error('Errore verifica permessi:', error)
+      setCanEdit(false)
+    } finally {
+      setCheckingPermissions(false)
+    }
   }
 
   const loadItems = async () => {
@@ -85,6 +104,10 @@ export default function ValueListsPage() {
   }
 
   const handleAdd = () => {
+    if (!canEdit) {
+      alert('Non hai i permessi per modificare le value lists')
+      return
+    }
     setIsAdding(true)
     setFormValue('')
     setFormLabel('')
@@ -92,6 +115,10 @@ export default function ValueListsPage() {
   }
 
   const handleEdit = (item: ValueListItem) => {
+    if (!canEdit) {
+      alert('Non hai i permessi per modificare le value lists')
+      return
+    }
     setEditingId(item.id)
     setFormValue(item.value)
     setFormLabel(item.label)
@@ -99,6 +126,11 @@ export default function ValueListsPage() {
   }
 
   const handleSave = async () => {
+    if (!canEdit) {
+      alert('Non hai i permessi per modificare le value lists')
+      return
+    }
+
     try {
       if (isAdding) {
         // Nuovo valore personale
@@ -154,6 +186,11 @@ export default function ValueListsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if (!canEdit) {
+      alert('Non hai i permessi per modificare le value lists')
+      return
+    }
+
     const item = items.find(i => i.id === id)
     
     if (item?.user_id === null) {
@@ -177,6 +214,11 @@ export default function ValueListsPage() {
   }
 
   const handleToggleActive = async (id: string, currentStatus: boolean) => {
+    if (!canEdit) {
+      alert('Non hai i permessi per modificare le value lists')
+      return
+    }
+
     const item = items.find(i => i.id === id)
     
     if (item?.user_id === null) {
@@ -215,49 +257,52 @@ export default function ValueListsPage() {
   const handleCancel = () => {
     setIsAdding(false)
     setEditingId(null)
-    setFormValue('')
-    setFormLabel('')
-    setFormOrderIndex(0)
-  }
-
-  const handleResetToDefault = async (value: string) => {
-    if (!confirm('Ripristinare il valore di default per questo elemento?')) return
-
-    try {
-      // Elimina l'override personale
-      const { error } = await supabase
-        .from('value_lists')
-        .delete()
-        .eq('category', selectedCategory)
-        .eq('value', value)
-        .eq('user_id', currentUserId)
-
-      if (error) throw error
-      loadItems()
-    } catch (error: any) {
-      alert('Errore: ' + error.message)
-    }
   }
 
   return (
-    <div className="page-container">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title">Gestione Value List</h1>
-        <p className="page-subtitle">Personalizza le tue liste di valori</p>
+      <div className="mb-6 sm:mb-8">
+        <div className="flex items-center gap-2 sm:gap-3 mb-2">
+          <List className="h-6 w-6 sm:h-8 sm:w-8 text-primary-600" />
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Value Lists</h1>
+        </div>
+        <p className="text-sm sm:text-base text-gray-600">
+          Gestisci i valori personalizzati per le categorie della tua applicazione
+        </p>
       </div>
 
-      {/* Category Selector */}
-      <div className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Seleziona Categoria
-        </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+      {/* Permission Alert */}
+      {!checkingPermissions && !canEdit && (
+        <div className="mb-6 bg-yellow-50 border-2 border-yellow-200 rounded-lg p-4 sm:p-6">
+          <div className="flex items-start gap-3 sm:gap-4">
+            <Lock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-yellow-900 text-sm sm:text-base mb-1">
+                ⚠️ Accesso limitato
+              </h3>
+              <p className="text-sm text-yellow-800 mb-3">
+                La modifica delle value lists è disponibile solo con un piano superiore. Puoi visualizzare i valori, ma non modificarli.
+              </p>
+              <Link
+                href="/upgrade"
+                className="inline-flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition-colors"
+              >
+                Upgrade al piano Pro →
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Categories Tabs */}
+      <div className="mb-6 sm:mb-8">
+        <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.value}
               onClick={() => setSelectedCategory(cat.value)}
-              className={`px-3 sm:px-4 py-2 sm:py-3 rounded-lg border-2 transition-colors text-xs sm:text-sm ${
+              className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg border-2 font-medium whitespace-nowrap transition-colors text-sm sm:text-base ${
                 selectedCategory === cat.value
                   ? 'border-primary-500 bg-primary-50 text-primary-700 font-medium'
                   : 'border-gray-200 hover:border-gray-300'
@@ -278,13 +323,15 @@ export default function ValueListsPage() {
               {CATEGORIES.find(c => c.value === selectedCategory)?.label}
             </h2>
           </div>
-          <button
-            onClick={handleAdd}
-            className="flex items-center gap-1 sm:gap-2 bg-primary-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm"
-          >
-            <Plus className="h-3 w-3 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">Aggiungi</span>
-          </button>
+          {canEdit && (
+            <button
+              onClick={handleAdd}
+              className="flex items-center gap-1 sm:gap-2 bg-primary-600 text-white px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-primary-700 transition-colors text-xs sm:text-sm"
+            >
+              <Plus className="h-3 w-3 sm:h-5 sm:w-5" />
+              <span className="hidden sm:inline">Aggiungi</span>
+            </button>
+          )}
         </div>
 
         {loading ? (
@@ -344,7 +391,12 @@ export default function ValueListsPage() {
 
             {/* Lista Valori */}
             {items.map((item) => (
-              <div key={item.id} className={`p-3 sm:p-4 ${editingId === item.id ? 'bg-blue-50' : 'hover:bg-gray-50'}`}>
+              <div 
+                key={item.id} 
+                className={`p-3 sm:p-4 ${
+                  editingId === item.id ? 'bg-blue-50' : 'hover:bg-gray-50'
+                } ${!canEdit ? 'opacity-75' : ''}`}
+              >
                 {editingId === item.id ? (
                   // Edit Mode
                   <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3">
@@ -410,29 +462,34 @@ export default function ValueListsPage() {
                     <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
                       <button
                         onClick={() => handleToggleActive(item.id, item.is_active)}
+                        disabled={!canEdit}
                         className={`text-xs px-2 py-1 rounded ${
                           item.is_active
                             ? 'bg-green-100 text-green-700'
                             : 'bg-gray-100 text-gray-700'
-                        }`}
+                        } ${!canEdit ? 'cursor-not-allowed opacity-50' : ''}`}
                       >
                         {item.is_active ? 'ON' : 'OFF'}
                       </button>
                       
-                      <button
-                        onClick={() => handleEdit(item)}
-                        className="p-1.5 sm:p-2 text-primary-600 hover:bg-primary-50 rounded"
-                      >
-                        <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                      </button>
-                      
-                      {item.user_id !== null && (
-                        <button
-                          onClick={() => handleDelete(item.id)}
-                          className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded"
-                        >
-                          <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                        </button>
+                      {canEdit && (
+                        <>
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="p-1.5 sm:p-2 text-primary-600 hover:bg-primary-50 rounded"
+                          >
+                            <Edit2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                          </button>
+                          
+                          {item.user_id !== null && (
+                            <button
+                              onClick={() => handleDelete(item.id)}
+                              className="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -464,6 +521,9 @@ export default function ValueListsPage() {
           </li>
           <li className="ml-6">• Modificando un valore globale, crei automaticamente la tua versione personale</li>
           <li className="ml-6">• I valori globali non possono essere eliminati, solo personalizzati</li>
+          {!canEdit && (
+            <li className="ml-6 text-yellow-700">🔒 <strong>Non puoi modificare</strong> le value lists con il tuo piano attuale</li>
+          )}
         </ul>
       </div>
     </div>
