@@ -108,7 +108,7 @@ export default function UpgradePage() {
                   )}
                   {!isFree && plan.price && (
                     <div className="mt-4">
-                      <span className="text-3xl font-bold">€ plan.price</span>
+                      <span className="text-3xl font-bold">€ {plan.price}</span>
                       <span className={`text-sm ${isCurrentPlan ? 'text-primary-100' : 'text-gray-600'}`}>
                         /anno
                       </span>
