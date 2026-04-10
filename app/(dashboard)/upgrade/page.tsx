@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowLeft, Check, Mail } from 'lucide-react'
@@ -17,51 +15,37 @@ interface Plan {
   display_order: number
 }
 
-export default function UpgradePage() {
-  const [plans, setPlans] = useState<Plan[]>([])
-  const [currentPlanId, setCurrentPlanId] = useState<string | null>(null)
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-
+async function loadData(user: any) {
   const supabase = createClient()
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('plan_id')
+    .eq('user_id', user.id)
+    .single()
 
-  const loadData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+  const { data: allPlans } = await supabase
+    .from('subscription_plans')
+    .select('*')
+    .eq('is_active', true)
+    .not('name', 'eq', 'admin')
+    .order('display_order')
 
-      setUserEmail(user.email || null)
-      setUserId(user.id)
-
-      // Carica user plan attuale
-      const { data: profile } = await supabase
-        .from('user_profiles')
-        .select('plan_id')
-        .eq('user_id', user.id)
-        .single()
-
-      if (profile) setCurrentPlanId(profile.plan_id)
-
-      // Carica tutti i piani (escluso admin)
-      const { data: allPlans } = await supabase
-        .from('subscription_plans')
-        .select('*')
-        .eq('is_active', true)
-        .not('name', 'eq', 'admin')
-        .order('display_order')
-
-      setPlans(allPlans || [])
-    } catch (error) {
-      console.error('Errore caricamento:', error)
-    } finally {
-      setLoading(false)
-    }
+  return {
+    currentPlanId: profile?.plan_id || null,
+    plans: allPlans || [],
+    userEmail: user.email,
+    userId: user.id
   }
+}
+
+export default async function UpgradePage() {
+  const supabase = createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) return null
+
+  const { currentPlanId, plans, userEmail, userId } = await loadData(user)
 
   const formatLimit = (limit: number | null) => {
     return limit === null ? 'Illimitati' : limit.toString()
@@ -71,8 +55,6 @@ export default function UpgradePage() {
     if (price === 0 || price === null) return 'Gratuito'
     return `€${(price * 12).toFixed(2)}/anno`
   }
-
-  if (loading) return <div className="p-12 text-center">Caricamento...</div>
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -94,7 +76,6 @@ export default function UpgradePage() {
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {plans.map((plan) => {
             const isCurrentPlan = plan.id === currentPlanId
-            const isFree = plan.price === 0 || plan.price === null
 
             return (
               <div
@@ -178,7 +159,7 @@ export default function UpgradePage() {
                 Per passare a un piano superiore, invia una email a:
               </p>
               
-                href={`mailto:scadix@cesena.biz?subject=Richiesta upgrade a Premium - Scadix&body=Ciao,%0D%0A%0D%0ASono interessato a passare a un piano superiore di Scadix.%0D%0A%0D%0AIl mio account: ${userEmail}%0D%0AID utente: ${userId}%0D%0A%0D%0AAttendo vostre comunicazioni.%0D%0A%0D%0AGrazie`}
+                href={`mailto:scadix@cesena.biz?subject=Richiesta upgrade - Scadix&body=Ciao,%0D%0A%0D%0ASono interessato a passare a un piano superiore di Scadix.%0D%0A%0D%0AAccount: ${userEmail}%0D%0AID: ${userId}%0D%0A%0D%0AAttendo vostre comunicazioni.%0D%0A%0D%0AGrazie`}
                 className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold text-lg"
               >
                 <Mail className="h-5 w-5" />
