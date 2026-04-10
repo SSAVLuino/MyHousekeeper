@@ -324,8 +324,7 @@ export default function AdminUsersPage() {
                     <>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-                          <p className="font-medium text-gray-900">{user.email}</p>
-                          <p className="text-xs text-gray-500 font-mono">{user.user_id}</p>
+                          <p className="font-medium text-gray-900">{user.user_id}</p>                      
                         </div>
                       </td>
                       <td className="px-4 py-3">
