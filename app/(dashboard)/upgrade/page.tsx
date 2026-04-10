@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { ArrowLeft, Check, Mail } from 'lucide-react'
 import Link from 'next/link'
 
@@ -15,9 +15,13 @@ interface Plan {
   display_order: number
 }
 
-async function loadData(user: any) {
+export default async function UpgradePage() {
   const supabase = createClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
+  // Carica dati
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('plan_id')
@@ -31,21 +35,8 @@ async function loadData(user: any) {
     .not('name', 'eq', 'admin')
     .order('display_order')
 
-  return {
-    currentPlanId: profile?.plan_id || null,
-    plans: allPlans || [],
-    userEmail: user.email,
-    userId: user.id
-  }
-}
-
-export default async function UpgradePage() {
-  const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) return null
-
-  const { currentPlanId, plans, userEmail, userId } = await loadData(user)
+  const currentPlanId = profile?.plan_id || null
+  const plans = (allPlans || []) as Plan[]
 
   const formatLimit = (limit: number | null) => {
     return limit === null ? 'Illimitati' : limit.toString()
@@ -159,7 +150,7 @@ export default async function UpgradePage() {
                 Per passare a un piano superiore, invia una email a:
               </p>
               
-                href={`mailto:scadix@cesena.biz?subject=Richiesta upgrade - Scadix&body=Ciao,%0D%0A%0D%0ASono interessato a passare a un piano superiore di Scadix.%0D%0A%0D%0AAccount: ${userEmail}%0D%0AID: ${userId}%0D%0A%0D%0AAttendo vostre comunicazioni.%0D%0A%0D%0AGrazie`}
+                href={`mailto:scadix@cesena.biz?subject=Richiesta upgrade - Scadix&body=Ciao,%0D%0A%0D%0ASono interessato a passare a un piano superiore di Scadix.%0D%0A%0D%0AAccount: ${user.email}%0D%0AID: ${user.id}%0D%0A%0D%0AAttendo vostre comunicazioni.%0D%0A%0D%0AGrazie`}
                 className="inline-flex items-center gap-2 bg-primary-600 text-white px-6 py-3 rounded-lg hover:bg-primary-700 transition-colors font-semibold text-lg"
               >
                 <Mail className="h-5 w-5" />
