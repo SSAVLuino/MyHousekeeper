@@ -15,13 +15,21 @@ interface Plan {
   display_order: number
 }
 
+function formatLimit(limit: number | null) {
+  return limit === null ? 'Illimitati' : limit.toString()
+}
+
+function formatPrice(price: number | null) {
+  if (price === 0 || price === null) return 'Gratuito'
+  return `€${(price * 12).toFixed(2)}/anno`
+}
+
 export default async function UpgradePage() {
   const supabase = createClient()
   
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // Carica dati
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('plan_id')
@@ -37,15 +45,6 @@ export default async function UpgradePage() {
 
   const currentPlanId = profile?.plan_id || null
   const plans = (allPlans || []) as Plan[]
-
-  const formatLimit = (limit: number | null) => {
-    return limit === null ? 'Illimitati' : limit.toString()
-  }
-
-  const formatPrice = (price: number | null) => {
-    if (price === 0 || price === null) return 'Gratuito'
-    return `€${(price * 12).toFixed(2)}/anno`
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -63,7 +62,6 @@ export default async function UpgradePage() {
           Seleziona il piano che meglio si adatta alle tue esigenze
         </p>
 
-        {/* Grid Piani */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {plans.map((plan) => {
             const isCurrentPlan = plan.id === currentPlanId
@@ -77,7 +75,6 @@ export default async function UpgradePage() {
                     : 'border-gray-200 bg-white hover:border-gray-300'
                 }`}
               >
-                {/* Header */}
                 <div className={`p-6 ${isCurrentPlan ? 'bg-primary-600 text-white' : 'bg-gray-50'}`}>
                   <h2 className="text-2xl font-bold mb-2">{plan.label}</h2>
                   {plan.description && (
@@ -90,7 +87,6 @@ export default async function UpgradePage() {
                   </div>
                 </div>
 
-                {/* Features */}
                 <div className="p-6">
                   <h3 className="font-semibold text-gray-900 mb-4">Cosa incluye:</h3>
                   
@@ -136,7 +132,6 @@ export default async function UpgradePage() {
           })}
         </div>
 
-        {/* Banner Email */}
         <div className="bg-gradient-to-r from-primary-50 to-green-50 rounded-xl p-8 border-2 border-primary-200">
           <div className="flex items-start gap-4">
             <div className="flex-shrink-0">
