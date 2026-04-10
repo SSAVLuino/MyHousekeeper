@@ -183,7 +183,9 @@ export default function PlanBadge() {
               expandedUpgrades ? 'rotate-90' : ''
             }`} />
           </button>
-
+          )}
+        </div>
+      )}
 
     </div>
   )
