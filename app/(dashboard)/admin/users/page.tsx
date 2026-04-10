@@ -97,25 +97,22 @@ export default function AdminUsersPage() {
       // Ottieni email da auth.users (tramite funzione RPC o API admin)
       // Per ora usiamo solo gli ID, in produzione dovresti avere una funzione RPC
       const enrichedUsers = await Promise.all(
-	  (profilesData || []).map(async (profile: any) => {
-		// Conta risorse
-		const [{ count: projectsCount }, { count: assetsCount }] = await Promise.all([
-		  supabase.from('projects').select('*', { count: 'exact', head: true }).eq('owner_id', profile.user_id),
-		  supabase.from('assets').select('*', { count: 'exact', head: true }).eq('user_id', profile.user_id),
-		])
+        (profilesData || []).map(async (profile: any) => {
+          // Conta risorse
+          const [{ count: projectsCount }, { count: assetsCount }] = await Promise.all([
+            supabase.from('projects').select('*', { count: 'exact', head: true }).eq('owner_id', profile.user_id),
+            supabase.from('assets').select('*', { count: 'exact', head: true }).eq('user_id', profile.user_id),
+          ])
 
-		// Carica email da auth.users
-		const { data: { user: authUser } } = await supabase.auth.admin.getUserById(profile.user_id)
-
-		return {
-		  ...profile,
-		  plan_name: profile.subscription_plans?.label || 'N/A',
-		  email: authUser?.email || 'N/A',
-		  projects_count: projectsCount || 0,
-		  assets_count: assetsCount || 0,
-		}
-	  })
-	)
+          return {
+            ...profile,
+            plan_name: profile.subscription_plans?.label || 'N/A',
+            email: `user-${profile.user_id.substring(0, 8)}...`, // Placeholder
+            projects_count: projectsCount || 0,
+            assets_count: assetsCount || 0,
+          }
+        })
+      )
 
       setUsers(enrichedUsers)
     } catch (error) {
@@ -247,8 +244,8 @@ export default function AdminUsersPage() {
                     <>
                       <td className="px-4 py-3">
                         <div className="text-sm">
-							<p className="font-medium text-gray-900">{user.email}</p>
-							<p className="text-xs text-gray-500 font-mono break-all">{user.user_id}</p>
+                          <p className="font-medium text-gray-900">{user.email}</p>
+                          <p className="text-xs text-gray-500 font-mono">{user.user_id.substring(0, 16)}...</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -328,7 +325,7 @@ export default function AdminUsersPage() {
                       <td className="px-4 py-3">
                         <div className="text-sm">
                           <p className="font-medium text-gray-900">{user.email}</p>
-                          <p className="text-xs text-gray-500 font-mono">{user.user_id.substring(0, 16)}...</p>
+                          <p className="text-xs text-gray-500 font-mono">{user.user_id}</p>
                         </div>
                       </td>
                       <td className="px-4 py-3">
