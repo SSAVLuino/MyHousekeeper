@@ -35,8 +35,8 @@ export default function UpgradePage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      setUserEmail(user.email)
-      setUserId(user.id)
+      setUserEmail(user.email || null)
+      setUserId(user.id || null)
 
       const { data: profile } = await supabase
         .from('user_profiles')
