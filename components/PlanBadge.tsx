@@ -168,7 +168,6 @@ export default function PlanBadge() {
         }`}>
           {/* Toggle Button */}
           <button
-            onClick={() => setExpandedUpgrades(!expandedUpgrades)}
             className="w-full flex items-center justify-between gap-2 text-left hover:opacity-75 transition-opacity"
           >
             <div className="flex items-center gap-2">
