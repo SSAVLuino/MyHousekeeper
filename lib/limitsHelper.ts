@@ -194,7 +194,6 @@ export async function canEditValueLists(
     return false
   }
 }
-La differenza: profile.subscription_plans[0] accede al primo elemento dell'array.
 
 /**
  * Formatta i limiti per display UI
