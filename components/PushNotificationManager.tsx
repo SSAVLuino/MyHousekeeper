@@ -34,8 +34,21 @@ export default function PushNotificationManager() {
     }
 
     try {
-      const reg = await navigator.serviceWorker.ready
-      const sub = await reg.pushManager.getSubscription()
+      // Assicurati che il SW sia registrato (potrebbe non esserlo ancora)
+      let reg = await navigator.serviceWorker.getRegistration()
+      if (!reg) {
+        reg = await navigator.serviceWorker.register('/sw.js')
+      }
+
+      // Attendi che sia attivo con timeout di 5 secondi
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW timeout')), 5000)
+        ),
+      ])
+
+      const sub = await readyReg.pushManager.getSubscription()
       if (sub) {
         setSubscription(sub)
         setStatus('active')
@@ -56,7 +69,12 @@ export default function PushNotificationManager() {
         return
       }
 
-      const reg = await navigator.serviceWorker.ready
+      const reg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('SW timeout')), 5000)
+        ),
+      ])
       const sub = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
