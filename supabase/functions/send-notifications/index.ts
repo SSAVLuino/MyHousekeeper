@@ -1,51 +1,72 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import webpush from 'npm:web-push'
-
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!
-const VAPID_EMAIL = Deno.env.get('VAPID_EMAIL')!
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')!
-const CRON_SECRET = Deno.env.get('CRON_SECRET')!
-
-webpush.setVapidDetails(VAPID_EMAIL, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY)
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 Deno.serve(async (req) => {
-  // Protezione: solo chiamate autorizzate
-  const authHeader = req.headers.get('authorization')
-  if (authHeader !== `Bearer ${CRON_SECRET}`) {
-    return new Response('Unauthorized', { status: 401 })
-  }
+  try {
+    console.log('=== send-notifications avviata ===')
 
-  const today = new Date().toISOString().split('T')[0]
+    // ── Auth ────────────────────────────────────────────────
+    const CRON_SECRET = Deno.env.get('CRON_SECRET')
+    if (!CRON_SECRET) {
+      console.error('CRON_SECRET mancante')
+      return new Response('Server misconfigured', { status: 500 })
+    }
 
-  // Cerca scadenze da notificare oggi:
-  // due_date = TODAY + notify_before_days giorni
-  // e notify_sent_at è null o è stato inviato più di 23 ore fa (evita duplicati)
-  const { data: deadlines, error } = await supabase.rpc('get_deadlines_to_notify', {
-    check_date: today,
-  })
+    const authHeader = req.headers.get('authorization')
+    if (authHeader !== `Bearer ${CRON_SECRET}`) {
+      return new Response('Unauthorized', { status: 401 })
+    }
 
-  if (error) {
-    console.error('Errore query scadenze:', error)
-    return new Response(JSON.stringify({ error: error.message }), { status: 500 })
-  }
+    // ── Env vars ────────────────────────────────────────────
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
+    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')
+    const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')
+    const VAPID_EMAIL = Deno.env.get('VAPID_EMAIL')
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
-  console.log(`Scadenze da notificare: ${deadlines?.length ?? 0}`)
+    console.log('Env check:', {
+      supabaseUrl: !!SUPABASE_URL,
+      serviceRole: !!SUPABASE_SERVICE_ROLE_KEY,
+      vapidPublic: !!VAPID_PUBLIC_KEY,
+      vapidPrivate: !!VAPID_PRIVATE_KEY,
+      vapidEmail: !!VAPID_EMAIL,
+      resend: !!RESEND_API_KEY,
+    })
 
-  const results = { push: 0, email: 0, errors: 0 }
+    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({ error: 'Supabase env mancanti' }), { status: 500 })
+    }
 
-  for (const deadline of deadlines ?? []) {
-    try {
-      // ── Push notification ──────────────────────────────────
-      if (deadline.notify_push) {
+    // ── Supabase client ─────────────────────────────────────
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+    const today = new Date().toISOString().split('T')[0]
+    console.log('Cerco scadenze per data:', today)
+
+    const { data: deadlines, error } = await supabase.rpc('get_deadlines_to_notify', {
+      check_date: today,
+    })
+
+    if (error) {
+      console.error('Errore RPC:', error)
+      return new Response(JSON.stringify({ error: error.message }), { status: 500 })
+    }
+
+    console.log(`Scadenze trovate: ${deadlines?.length ?? 0}`)
+
+    const results = { push: 0, email: 0, errors: 0 }
+
+    for (const deadline of deadlines ?? []) {
+      console.log(`Processo scadenza: ${deadline.title}`)
+
+      // ── Push ──────────────────────────────────────────────
+      if (deadline.notify_push && VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY && VAPID_EMAIL) {
         const { data: subs } = await supabase
           .from('push_subscriptions')
           .select('endpoint, p256dh, auth_key')
           .eq('user_id', deadline.user_id)
+
+        console.log(`Subscriptions trovate: ${subs?.length ?? 0}`)
 
         const payload = JSON.stringify({
           title: `Scadenza: ${deadline.title}`,
@@ -55,69 +76,99 @@ Deno.serve(async (req) => {
 
         for (const sub of subs ?? []) {
           try {
-            await webpush.sendNotification(
-              {
-                endpoint: sub.endpoint,
-                keys: { p256dh: sub.p256dh, auth: sub.auth_key },
-              },
+            await sendWebPush(
+              sub.endpoint,
+              sub.p256dh,
+              sub.auth_key,
+              VAPID_PUBLIC_KEY,
+              VAPID_PRIVATE_KEY,
+              VAPID_EMAIL,
               payload
             )
             results.push++
+            console.log('Push inviata con successo')
           } catch (pushErr: any) {
-            // Se la subscription è scaduta (410), la rimuoviamo
-            if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
-              await supabase
-                .from('push_subscriptions')
-                .delete()
-                .eq('endpoint', sub.endpoint)
-            }
             console.error('Push error:', pushErr.message)
+            if (pushErr.message?.includes('410') || pushErr.message?.includes('404')) {
+              await supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint)
+            }
+            results.errors++
           }
         }
       }
 
-      // ── Email notification ─────────────────────────────────
-      if (deadline.notify_email && deadline.user_email) {
-        const res = await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${RESEND_API_KEY}`,
-          },
-          body: JSON.stringify({
-            from: 'Scadix <notifiche@scadix.app>',
-            to: [deadline.user_email],
-            subject: `Promemoria: ${deadline.title}`,
-            html: buildEmailHtml(deadline),
-          }),
-        })
+      // ── Email ─────────────────────────────────────────────
+      if (deadline.notify_email && deadline.user_email && RESEND_API_KEY) {
+        try {
+          const res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+              from: 'Scadix <onboarding@resend.dev>',
+              to: [deadline.user_email],
+              subject: `Promemoria: ${deadline.title}`,
+              html: buildEmailHtml(deadline),
+            }),
+          })
 
-        if (res.ok) {
-          results.email++
-        } else {
-          const err = await res.text()
-          console.error('Email error:', err)
+          if (res.ok) {
+            results.email++
+            console.log('Email inviata con successo')
+          } else {
+            const err = await res.text()
+            console.error('Email error:', err)
+            results.errors++
+          }
+        } catch (emailErr: any) {
+          console.error('Email exception:', emailErr.message)
           results.errors++
         }
       }
 
-      // ── Aggiorna notify_sent_at ────────────────────────────
+      // ── Aggiorna notify_sent_at ───────────────────────────
       await supabase
         .from('deadlines')
         .update({ notify_sent_at: new Date().toISOString() })
         .eq('id', deadline.id)
-
-    } catch (err: any) {
-      console.error(`Errore scadenza ${deadline.id}:`, err.message)
-      results.errors++
     }
-  }
 
-  console.log('Risultati:', results)
-  return new Response(JSON.stringify({ ok: true, processed: deadlines?.length ?? 0, results }), {
-    headers: { 'Content-Type': 'application/json' },
-  })
+    console.log('Risultati finali:', results)
+    return new Response(
+      JSON.stringify({ ok: true, processed: deadlines?.length ?? 0, results }),
+      { headers: { 'Content-Type': 'application/json' } }
+    )
+
+  } catch (err: any) {
+    console.error('Errore non gestito:', err.message, err.stack)
+    return new Response(JSON.stringify({ error: err.message }), { status: 500 })
+  }
 })
+
+// ── Web Push manuale (senza npm:web-push) ──────────────────────────────────
+// Usa l'API fetch diretta verso l'endpoint del browser con VAPID JWT
+
+async function sendWebPush(
+  endpoint: string,
+  p256dh: string,
+  auth: string,
+  vapidPublicKey: string,
+  vapidPrivateKey: string,
+  vapidEmail: string,
+  payload: string
+): Promise<void> {
+  // Importa la libreria web-push tramite esm.sh con compatibilità Deno
+  const { default: webpush } = await import('https://esm.sh/web-push@3.6.7?target=deno')
+
+  webpush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey)
+
+  await webpush.sendNotification(
+    { endpoint, keys: { p256dh, auth } },
+    payload
+  )
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -143,9 +194,7 @@ function buildEmailHtml(deadline: any): string {
          style="display:inline-block;background:#ea580c;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600">
         Vedi scadenza →
       </a>
-      <p style="color:#9ca3af;font-size:12px;margin-top:24px">
-        Scadix — Gestione Asset e Scadenze
-      </p>
+      <p style="color:#9ca3af;font-size:12px;margin-top:24px">Scadix — Gestione Asset e Scadenze</p>
     </div>
   `
 }
