@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Save, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Save, AlertCircle, Bell, Mail } from 'lucide-react'
 import Link from 'next/link'
 import { loadValueLists } from '@/lib/valueListsHelper'
 import { getProjectPermissions } from '@/lib/permissionsHelper'
@@ -20,6 +20,11 @@ export default function EditDeadlinePage({ params }: { params: { id: string } })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [canEdit, setCanEdit] = useState(false)
+
+  const [notifyEnabled, setNotifyEnabled] = useState(false)
+  const [notifyBeforeDays, setNotifyBeforeDays] = useState<number | null>(null)
+  const [notifyPush, setNotifyPush] = useState(false)
+  const [notifyEmail, setNotifyEmail] = useState(false)
   
   const [categories, setCategories] = useState<any[]>([])
   const [frequencies, setFrequencies] = useState<any[]>([])
@@ -81,6 +86,10 @@ export default function EditDeadlinePage({ params }: { params: { id: string } })
       setNotes(deadline.notes || '')
       setProjectId(deadline.project_id || '')
       setAssetId(deadline.asset_id || '')
+      setNotifyEnabled(deadline.notify_before_days !== null)
+      setNotifyBeforeDays(deadline.notify_before_days ?? null)
+      setNotifyPush(deadline.notify_push ?? false)
+      setNotifyEmail(deadline.notify_email ?? false)
 
       // Carica categorie
       const cats = await loadValueLists(supabase, 'deadline_category', user.id, true)
@@ -161,6 +170,10 @@ export default function EditDeadlinePage({ params }: { params: { id: string } })
           notes: notes || null,
           project_id: projectId || null,
           asset_id: assetId || null,
+          notify_before_days: notifyEnabled ? notifyBeforeDays : null,
+          notify_push: notifyEnabled && notifyPush,
+          notify_email: notifyEnabled && notifyEmail,
+          notify_sent_at: null,
         })
         .eq('id', params.id)
 
@@ -334,6 +347,77 @@ export default function EditDeadlinePage({ params }: { params: { id: string } })
             </select>
           </div>
         )}
+
+        {/* Notifiche */}
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 bg-gray-50">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Notifiche</p>
+              <p className="text-xs text-gray-500 mt-0.5">Ricevi un avviso prima della scadenza</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setNotifyEnabled(!notifyEnabled)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                notifyEnabled ? 'bg-orange-500' : 'bg-gray-300'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                notifyEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+
+          {notifyEnabled && (
+            <div className="px-4 py-4 space-y-4 border-t border-gray-200">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Invia notifica
+                </label>
+                <select
+                  value={notifyBeforeDays ?? ''}
+                  onChange={(e) => setNotifyBeforeDays(e.target.value ? Number(e.target.value) : null)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="">Seleziona quando</option>
+                  <option value="1">1 giorno prima</option>
+                  <option value="3">3 giorni prima</option>
+                  <option value="7">1 settimana prima</option>
+                  <option value="14">2 settimane prima</option>
+                  <option value="30">1 mese prima</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tramite
+                </label>
+                <div className="flex gap-6">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={notifyPush}
+                      onChange={(e) => setNotifyPush(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    />
+                    <Bell className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Push</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-orange-600 focus:ring-orange-500"
+                    />
+                    <Mail className="h-4 w-4 text-gray-600" />
+                    <span className="text-sm text-gray-700">Email</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Note */}
         <div>
