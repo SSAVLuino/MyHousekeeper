@@ -11,8 +11,8 @@ Deno.serve(async (req) => {
       return new Response('Server misconfigured', { status: 500 })
     }
 
-    const authHeader = req.headers.get('authorization')
-    if (authHeader !== `Bearer ${CRON_SECRET}`) {
+    const cronHeader = req.headers.get('x-cron-secret')
+    if (cronHeader !== CRON_SECRET) {
       return new Response('Unauthorized', { status: 401 })
     }
 
