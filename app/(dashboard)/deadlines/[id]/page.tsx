@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, Calendar, CheckCircle2, Clock, Shield } from 'lucide-react'
+import { ArrowLeft, Calendar, CheckCircle2, Clock, Shield, Bell, Mail, BellOff } from 'lucide-react'
 import { format, parseISO, isBefore } from 'date-fns'
 import { it } from 'date-fns/locale'
 import CompleteDeadlineButton from './CompleteDeadlineButton'
@@ -242,6 +242,41 @@ export default async function DeadlineDetailPage({ params }: { params: { id: str
                 <dd className="text-sm text-gray-900 mt-1">
                   {format(new Date(deadline.created_at), 'dd MMM yyyy', { locale: it })}
                 </dd>
+              </div>
+
+              {/* Notifiche */}
+              <div className="pt-3 border-t border-gray-100">
+                <dt className="text-sm font-medium text-gray-500 mb-2">Notifiche</dt>
+                {deadline.notify_before_days ? (
+                  <dd className="space-y-2">
+                    <p className="text-sm text-gray-900">
+                      {deadline.notify_before_days === 1 && '1 giorno prima'}
+                      {deadline.notify_before_days === 3 && '3 giorni prima'}
+                      {deadline.notify_before_days === 7 && '1 settimana prima'}
+                      {deadline.notify_before_days === 14 && '2 settimane prima'}
+                      {deadline.notify_before_days === 30 && '1 mese prima'}
+                    </p>
+                    <div className="flex gap-3">
+                      {deadline.notify_push && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          <Bell className="h-3 w-3" />
+                          Push
+                        </span>
+                      )}
+                      {deadline.notify_email && (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                          <Mail className="h-3 w-3" />
+                          Email
+                        </span>
+                      )}
+                    </div>
+                  </dd>
+                ) : (
+                  <dd className="flex items-center gap-1.5 text-sm text-gray-400">
+                    <BellOff className="h-4 w-4" />
+                    Disattivate
+                  </dd>
+                )}
               </div>
             </dl>
           </div>
