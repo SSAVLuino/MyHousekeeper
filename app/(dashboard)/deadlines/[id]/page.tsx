@@ -75,53 +75,44 @@ export default async function DeadlineDetailPage({ params }: { params: { id: str
           Torna alle scadenze
         </Link>
         
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                <Calendar className="h-6 w-6 text-orange-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-gray-900">{deadline.title}</h1>
-                  <span className={`text-xs px-3 py-1 rounded-full border ${getRoleBadgeColor(permissions.role)}`}>
-                    <Shield className="h-3 w-3 inline mr-1" />
-                    {formatRoleName(permissions.role)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`text-xs px-2 py-1 rounded ${status.color}`}>
-                    {status.label}
-                  </span>
-                  <span className="text-sm text-gray-600">{deadline.category}</span>
-                  {deadline.frequency && (
-                    <span className="text-sm text-gray-600">• {deadline.frequency}</span>
-                  )}
-                </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="h-12 w-12 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Calendar className="h-6 w-6 text-orange-600" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{deadline.title}</h1>
+              <div className="flex items-center gap-2 flex-wrap mt-2">
+                <span className={`text-xs px-3 py-1 rounded-full border ${getRoleBadgeColor(permissions.role)}`}>
+                  <Shield className="h-3 w-3 inline mr-1" />
+                  {formatRoleName(permissions.role)}
+                </span>
+                <span className={`text-xs px-2 py-1 rounded ${status.color}`}>
+                  {status.label}
+                </span>
+                <span className="text-sm text-gray-600">{deadline.category}</span>
+                {deadline.frequency && (
+                  <span className="text-sm text-gray-600">• {deadline.frequency}</span>
+                )}
               </div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3">
-            {/* Pulsante Modifica: Owner, Admin, Editor */}
-            {permissions.canEditDeadlines && (
+
+          {permissions.canEditDeadlines && (
+            <div className="flex items-center gap-2 sm:flex-shrink-0">
               <Link
                 href={`/deadlines/${deadline.id}/edit`}
-                className="flex items-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
+                className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors"
               >
                 Modifica
               </Link>
-            )}
-            
-            {/* Pulsante Completa: Owner, Admin, Editor */}
-            {permissions.canEditDeadlines && (
-              <CompleteDeadlineButton 
-                deadlineId={deadline.id} 
+              <CompleteDeadlineButton
+                deadlineId={deadline.id}
                 currentDueDate={deadline.due_date}
                 frequency={deadline.frequency}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 

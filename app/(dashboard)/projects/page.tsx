@@ -1,12 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { Plus, FolderKanban, Users } from 'lucide-react'
-import { format } from 'date-fns'
+import { Plus, FolderKanban } from 'lucide-react'
+import ProjectsList from './ProjectsList'
 
 export const dynamic = 'force-dynamic'
-import { it } from 'date-fns/locale'
-import DeleteProjectButton from './[id]/DeleteProjectButton'
 
 async function getProjects() {
   const supabase = createClient()
@@ -118,92 +116,7 @@ export default async function ProjectsPage() {
           </Link>
         </div>
       ) : (
-        <div className="card-grid-2">
-          {projects.map((project: any) => (
-            <div
-              key={project.id}
-              className="bg-white rounded-lg sm:rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
-            >
-              <Link href={`/projects/${project.id}`} className="block p-3 sm:p-6">
-                <div className="flex items-start justify-between mb-3 sm:mb-4">
-                  <div className="h-8 w-8 sm:h-12 sm:w-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <FolderKanban className="h-4 w-4 sm:h-6 sm:w-6 text-primary-600" />
-                  </div>
-                </div>
-
-                <h3 className="text-sm sm:text-lg font-semibold text-gray-900 mb-2 line-clamp-2 flex items-center gap-2">
-                  {project.name}
-                  {project.userRole === 'owner' && (
-                    <span className="text-xs bg-primary-100 text-primary-700 px-2 py-0.5 rounded border border-primary-300">
-                      Proprietario
-                    </span>
-                  )}
-                  {project.userRole === 'admin' && (
-                    <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded border border-purple-300">
-                      Admin
-                    </span>
-                  )}
-                  {project.userRole === 'editor' && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded border border-blue-300">
-                      Editor
-                    </span>
-                  )}
-                  {project.userRole === 'viewer' && (
-                    <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded border border-gray-300">
-                      Viewer
-                    </span>
-                  )}
-                </h3>
-                
-                {project.description && (
-                  <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 line-clamp-2 hidden sm:block">
-                    {project.description}
-                  </p>
-                )}
-
-                <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
-                  <div className="flex items-center gap-1">
-                    <Users className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span>{project.project_members?.[0]?.count || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <FolderKanban className="h-3 w-3 sm:h-4 sm:w-4" />
-                    <span className="hidden sm:inline">{project.assets?.[0]?.count || 0} asset</span>
-                    <span className="sm:hidden">{project.assets?.[0]?.count || 0}</span>
-                  </div>
-                </div>
-
-                <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100">
-                  <p className="text-xs text-gray-500">
-                    {format(new Date(project.created_at), 'dd/MM/yy', { locale: it })}
-                  </p>
-                </div>
-              </Link>
-
-              <div className="px-3 sm:px-6 py-2 sm:py-3 bg-gray-50 border-t border-gray-200 flex items-center justify-between text-xs sm:text-sm">
-                {/* Modifica: owner o admin */}
-                {(project.userRole === 'owner' || project.userRole === 'admin') && (
-                  <Link
-                    href={`/projects/${project.id}/edit`}
-                    className="text-primary-600 hover:text-primary-700 font-medium"
-                  >
-                    Modifica
-                  </Link>
-                )}
-                
-                {/* Spacer se non può modificare */}
-                {project.userRole !== 'owner' && project.userRole !== 'admin' && (
-                  <div></div>
-                )}
-                
-                {/* Elimina: solo owner */}
-                {project.userRole === 'owner' && (
-                  <DeleteProjectButton projectId={project.id} projectName={project.name} />
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProjectsList projects={projects} />
       )}
     </div>
   )

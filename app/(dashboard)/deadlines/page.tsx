@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import Link from 'next/link'
-import { Plus, Calendar, AlertCircle, Filter, X } from 'lucide-react'
+import { Plus, Calendar, AlertCircle, Filter, X, ChevronDown, ChevronUp, Pencil, ExternalLink } from 'lucide-react'
 import { format, parseISO, isBefore, isToday } from 'date-fns'
 import { it } from 'date-fns/locale'
 
@@ -56,6 +56,8 @@ export default function DeadlinesPage() {
   const [selectedProject, setSelectedProject] = useState<string>('')
   const [selectedAsset, setSelectedAsset] = useState<string>('')
   const [showFilters, setShowFilters] = useState(false)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   
   const supabase = createClient()
 
@@ -176,6 +178,17 @@ export default function DeadlinesPage() {
     ? assets.filter(a => a.project_id === selectedProject)
     : assets
 
+  const deleteDeadline = async (id: string) => {
+    if (!window.confirm('Eliminare questa scadenza? L\'operazione non è reversibile.')) return
+    setDeletingId(id)
+    await supabase.from('deadlines').delete().eq('id', id)
+    setDeletingId(null)
+    setExpandedId(null)
+    loadData()
+  }
+
+  const canEdit = (userRole?: string) => ['owner', 'admin', 'editor'].includes(userRole || '')
+
   const clearFilters = () => {
     setSelectedProject('')
     setSelectedAsset('')
@@ -197,17 +210,17 @@ export default function DeadlinesPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Scadenze</h1>
           <p className="text-gray-600 mt-1">Gestisci le tue scadenze</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              hasActiveFilters 
-                ? 'bg-primary-50 border-primary-300 text-primary-700' 
+            className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              hasActiveFilters
+                ? 'bg-primary-50 border-primary-300 text-primary-700'
                 : 'border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -221,7 +234,7 @@ export default function DeadlinesPage() {
           </button>
           <Link
             href="/deadlines/new"
-            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+            className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
             Nuova Scadenza
@@ -353,36 +366,84 @@ export default function DeadlinesPage() {
               <div className="divide-y divide-gray-200">
                 {overdueDeadlines.map((deadline) => {
                   const status = getDeadlineStatus(deadline.due_date)
+                  const isExpanded = expandedId === deadline.id
+                  const isDeleting = deletingId === deadline.id
                   return (
-                    <Link
-                      key={deadline.id}
-                      href={`/deadlines/${deadline.id}`}
-                      className="block px-6 py-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-medium text-gray-900">{deadline.title}</h3>
-                            <span className={`text-xs px-2 py-1 rounded border ${status.color}`}>
-                              {status.label}
-                            </span>
+                    <div key={deadline.id} className={`transition-colors ${isDeleting ? 'opacity-50' : ''}`}>
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : deadline.id)}
+                        className="w-full text-left px-4 py-4 hover:bg-red-50/50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className={`text-xs px-2 py-0.5 rounded border flex-shrink-0 ${status.color}`}>
+                                {status.label}
+                              </span>
+                              <h3 className="font-medium text-gray-900 truncate">{deadline.title}</h3>
+                            </div>
+                            <p className="text-sm font-medium text-red-600">
+                              {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>{deadline.category}</span>
-                            {deadline.frequency && <span>• {deadline.frequency}</span>}
-                            <span>• {deadline.projects?.name || deadline.assets?.name || 'N/A'}</span>
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-4 pb-4 bg-red-50/30 border-t border-red-100">
+                          <dl className="mt-3 space-y-2 text-sm">
+                            <div className="flex gap-2">
+                              <dt className="text-gray-500 w-24 flex-shrink-0">Categoria</dt>
+                              <dd className="text-gray-900">{deadline.category}</dd>
+                            </div>
+                            {deadline.frequency && (
+                              <div className="flex gap-2">
+                                <dt className="text-gray-500 w-24 flex-shrink-0">Ricorrenza</dt>
+                                <dd className="text-gray-900">{deadline.frequency}</dd>
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <dt className="text-gray-500 w-24 flex-shrink-0">Progetto</dt>
+                              <dd className="text-gray-900">{deadline.projects?.name || deadline.assets?.name || 'N/A'}</dd>
+                            </div>
+                            {deadline.notes && (
+                              <div className="flex gap-2">
+                                <dt className="text-gray-500 w-24 flex-shrink-0">Note</dt>
+                                <dd className="text-gray-600 line-clamp-2">{deadline.notes}</dd>
+                              </div>
+                            )}
+                          </dl>
+                          <div className="mt-4 flex items-center gap-2">
+                            <Link
+                              href={`/deadlines/${deadline.id}`}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-white transition-colors text-gray-700"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Dettagli
+                            </Link>
+                            {canEdit(deadline.userRole) && (
+                              <>
+                                <Link
+                                  href={`/deadlines/${deadline.id}/edit`}
+                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary-300 hover:bg-primary-50 transition-colors text-primary-700"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Modifica
+                                </Link>
+                                <button
+                                  onClick={() => deleteDeadline(deadline.id)}
+                                  disabled={isDeleting}
+                                  title="Elimina"
+                                  className="flex items-center justify-center p-1.5 rounded-lg border border-red-300 hover:bg-red-50 transition-colors text-red-700 disabled:opacity-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
-                          {deadline.notes && (
-                            <p className="text-sm text-gray-500 mt-2 line-clamp-1">{deadline.notes}</p>
-                          )}
                         </div>
-                        <div className="text-right ml-4">
-                          <p className="text-sm font-medium text-red-600">
-                            {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
+                      )}
+                    </div>
                   )
                 })}
               </div>
@@ -403,36 +464,85 @@ export default function DeadlinesPage() {
               <div className="divide-y divide-gray-200">
                 {upcomingDeadlines.map((deadline) => {
                   const status = getDeadlineStatus(deadline.due_date)
+                  const isExpanded = expandedId === deadline.id
+                  const isDeleting = deletingId === deadline.id
+                  const dateColor = isToday(parseISO(deadline.due_date)) ? 'text-orange-600' : 'text-gray-900'
                   return (
-                    <Link
-                      key={deadline.id}
-                      href={`/deadlines/${deadline.id}`}
-                      className="block px-6 py-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-medium text-gray-900">{deadline.title}</h3>
-                            <span className={`text-xs px-2 py-1 rounded border ${status.color}`}>
-                              {status.label}
-                            </span>
+                    <div key={deadline.id} className={`transition-colors ${isDeleting ? 'opacity-50' : ''}`}>
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : deadline.id)}
+                        className="w-full text-left px-4 py-4 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className={`text-xs px-2 py-0.5 rounded border flex-shrink-0 ${status.color}`}>
+                                {status.label}
+                              </span>
+                              <h3 className="font-medium text-gray-900 truncate">{deadline.title}</h3>
+                            </div>
+                            <p className={`text-sm font-medium ${dateColor}`}>
+                              {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-gray-600">
-                            <span>{deadline.category}</span>
-                            {deadline.frequency && <span>• {deadline.frequency}</span>}
-                            <span>• {deadline.projects?.name || deadline.assets?.name || 'N/A'}</span>
+                          {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-400 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="px-4 pb-4 bg-gray-50/50 border-t border-gray-100">
+                          <dl className="mt-3 space-y-2 text-sm">
+                            <div className="flex gap-2">
+                              <dt className="text-gray-500 w-24 flex-shrink-0">Categoria</dt>
+                              <dd className="text-gray-900">{deadline.category}</dd>
+                            </div>
+                            {deadline.frequency && (
+                              <div className="flex gap-2">
+                                <dt className="text-gray-500 w-24 flex-shrink-0">Ricorrenza</dt>
+                                <dd className="text-gray-900">{deadline.frequency}</dd>
+                              </div>
+                            )}
+                            <div className="flex gap-2">
+                              <dt className="text-gray-500 w-24 flex-shrink-0">Progetto</dt>
+                              <dd className="text-gray-900">{deadline.projects?.name || deadline.assets?.name || 'N/A'}</dd>
+                            </div>
+                            {deadline.notes && (
+                              <div className="flex gap-2">
+                                <dt className="text-gray-500 w-24 flex-shrink-0">Note</dt>
+                                <dd className="text-gray-600 line-clamp-2">{deadline.notes}</dd>
+                              </div>
+                            )}
+                          </dl>
+                          <div className="mt-4 flex items-center gap-2">
+                            <Link
+                              href={`/deadlines/${deadline.id}`}
+                              className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-white transition-colors text-gray-700"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                              Dettagli
+                            </Link>
+                            {canEdit(deadline.userRole) && (
+                              <>
+                                <Link
+                                  href={`/deadlines/${deadline.id}/edit`}
+                                  className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-primary-300 hover:bg-primary-50 transition-colors text-primary-700"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Modifica
+                                </Link>
+                                <button
+                                  onClick={() => deleteDeadline(deadline.id)}
+                                  disabled={isDeleting}
+                                  title="Elimina"
+                                  className="flex items-center justify-center p-1.5 rounded-lg border border-red-300 hover:bg-red-50 transition-colors text-red-700 disabled:opacity-50"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
+                            )}
                           </div>
-                          {deadline.notes && (
-                            <p className="text-sm text-gray-500 mt-2 line-clamp-1">{deadline.notes}</p>
-                          )}
                         </div>
-                        <div className="text-right ml-4">
-                          <p className={`text-sm font-medium ${isToday(parseISO(deadline.due_date)) ? 'text-orange-600' : 'text-gray-900'}`}>
-                            {format(parseISO(deadline.due_date), 'dd MMM yyyy', { locale: it })}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
+                      )}
+                    </div>
                   )
                 })}
               </div>
