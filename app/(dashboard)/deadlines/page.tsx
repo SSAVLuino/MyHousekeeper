@@ -197,17 +197,17 @@ export default function DeadlinesPage() {
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Scadenze</h1>
           <p className="text-gray-600 mt-1">Gestisci le tue scadenze</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-              hasActiveFilters 
-                ? 'bg-primary-50 border-primary-300 text-primary-700' 
+            className={`flex flex-1 sm:flex-none items-center justify-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
+              hasActiveFilters
+                ? 'bg-primary-50 border-primary-300 text-primary-700'
                 : 'border-gray-300 hover:bg-gray-50'
             }`}
           >
@@ -221,7 +221,7 @@ export default function DeadlinesPage() {
           </button>
           <Link
             href="/deadlines/new"
-            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+            className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors"
           >
             <Plus className="h-5 w-5" />
             Nuova Scadenza
