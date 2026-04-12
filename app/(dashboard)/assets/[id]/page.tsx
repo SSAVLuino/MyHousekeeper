@@ -58,33 +58,30 @@ export default async function AssetDetailPage({ params }: { params: { id: string
           Torna agli asset
         </Link>
         
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <Package className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <div className="flex items-center gap-3">
-                  <h1 className="text-3xl font-bold text-gray-900">{asset.name}</h1>
-                  <span className={`text-xs px-3 py-1 rounded-full border ${getRoleBadgeColor(permissions.role)}`}>
-                    <Shield className="h-3 w-3 inline mr-1" />
-                    {formatRoleName(permissions.role)}
-                  </span>
-                </div>
-                <p className="text-gray-600">{asset.type}</p>
-              </div>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="h-12 w-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Package className="h-6 w-6 text-green-600" />
             </div>
-            <p className="text-sm text-gray-500 mt-2">
-              Creato il {format(new Date(asset.created_at), 'dd MMMM yyyy', { locale: it })}
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 break-words">{asset.name}</h1>
+                <span className={`text-xs px-3 py-1 rounded-full border flex-shrink-0 ${getRoleBadgeColor(permissions.role)}`}>
+                  <Shield className="h-3 w-3 inline mr-1" />
+                  {formatRoleName(permissions.role)}
+                </span>
+              </div>
+              <p className="text-gray-600">{asset.type}</p>
+              <p className="text-sm text-gray-500 mt-1">
+                Creato il {format(new Date(asset.created_at), 'dd MMMM yyyy', { locale: it })}
+              </p>
+            </div>
           </div>
-          
-          {/* Pulsante Modifica: Owner, Admin, Editor */}
+
           {permissions.canEditAssets && (
             <Link
               href={`/assets/${asset.id}/edit`}
-              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              className="flex items-center justify-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors sm:flex-shrink-0"
             >
               <Edit className="h-5 w-5" />
               Modifica
